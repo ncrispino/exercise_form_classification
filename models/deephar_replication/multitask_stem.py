@@ -1,55 +1,12 @@
-# See Figure 10 and 11 for more.
-# For reference, based on Inception-V4 (https://arxiv.org/pdf/1602.07261.pdf) as stated in the article.
+"""
+Contains the multitask stem model as seen in Figures 10 and 11.
+For reference, based on Inception-V4 (https://arxiv.org/pdf/1602.07261.pdf) as stated in the article.
+"""
 
 import torch
 import torch.nn as nn
-
-class SRBlock(nn.Module):
-    """
-    Separable residual module.
-    Uses depthwise separable convolutions, meaning it combines a depthwise convolution with a pointwise convolution.
-    Not using Relu between depthwise and pointwise, as recommended in this paper: https://arxiv.org/abs/1610.02357.
-    """
-    def __init__(self, n_in, n_out, s, include_batch_relu=True):
-        self.n_in = n_in
-        self.n_out = n_out     
-        self.include_batch_relu = include_batch_relu   
-        self.conv = nn.Conv2d(n_in, n_out, kernel_size=1)
-        # use n_in separate kernels of dim 1 x kernel_size x kernel_size, each for one channel, and concatenate together using pointwise conv
-        self.depthwise_conv = nn.Conv2d(n_in, n_in, kernel_size=s, groups=n_in, padding='same') # as input and output both have W x H, as seen in Figure 10 of paper
-        # use a 1x1 conv to increase output dim
-        self.pointwise_conv = nn.Conv2d(n_in, n_out, kernel_size=1)
-        self.batch_norm = nn.BatchNorm2d(n_out)
-        self.relu = nn.Relu()
-    
-    def forward(self, x):
-        out1 = self.conv(x)
-        if self.n_in == self.n_out:
-            out = x + out1
-            if self.include_batch_relu:
-                out = self.batch_norm(out)
-                out = self.relu(out1)
-            return out
-        out2 = self.depthwise_conv(x)
-        out2 = self.pointwise_conv(out2)
-        out = out1 + out2
-        if self.include_batch_relu:
-            out = self.batch_norm(out)
-            out = self.relu(out)
-        return out
-
-class ConvBlock(nn.Module):
-    """
-    Convolution with batch normalization and relu.
-    """
-    def __init__(self, input_dim, output_dim, kernel_size, stride, padding):
-        super().__init__()
-        self.conv = nn.Conv2d(input_dim, output_dim, kernel_size=kernel_size, stride=stride, padding=padding)
-        self.batch_norm = nn.BatchNorm2d(output_dim)
-        self.relu = nn.ReLu()
-
-    def forward(self, x):
-        return self.relu(self.batch_norm(self.conv(x)))
+from general_models import ConvBlock
+from general_models import SRBlock
 
 class Inception1(nn.Module):
     """
