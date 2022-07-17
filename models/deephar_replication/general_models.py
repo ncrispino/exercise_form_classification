@@ -8,11 +8,11 @@ class ConvBlock(nn.Module):
     """
     Convolution with batch normalization and relu.
     """
-    def __init__(self, input_dim, output_dim, kernel_size, stride, padding):
+    def __init__(self, input_dim, output_dim, kernel_size, stride=1, padding=0):
         super().__init__()
         self.conv = nn.Conv2d(input_dim, output_dim, kernel_size=kernel_size, stride=stride, padding=padding)
         self.batch_norm = nn.BatchNorm2d(output_dim)
-        self.relu = nn.ReLu()
+        self.relu = nn.ReLU()
 
     def forward(self, x):
         return self.relu(self.batch_norm(self.conv(x)))
@@ -32,7 +32,7 @@ class SCBlock(nn.Module):
         # use a 1x1 conv to increase output dim
         self.pointwise_conv = nn.Conv2d(n_in, n_out, kernel_size=1)
         self.batch_norm = nn.BatchNorm2d(n_out)
-        self.relu = nn.Relu()
+        self.relu = nn.ReLU()
     
     def forward(self, x):
         out = self.depthwise_conv(x)
@@ -57,7 +57,7 @@ class SRBlock(nn.Module):
         self.conv = nn.Conv2d(n_in, n_out, kernel_size=1)
         self.sc = SCBlock(n_in, n_out, s, include_batch_relu=True)
         self.batch_norm = nn.BatchNorm2d(n_out)
-        self.relu = nn.Relu()
+        self.relu = nn.ReLU()
     
     def forward(self, x):
         out1 = self.conv(x)

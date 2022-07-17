@@ -1,6 +1,6 @@
 ## Overview
 Replicating the paper [2D/3D Pose Estimation and Action Recognition using Multitask Deep Learning](https://arxiv.org/pdf/1802.09232.pdf) using PyTorch.
-Note that the authors provided their code, but I will try not to look at it unless absolutely necessary to implement it myself.
+Note that the authors provided their code, which I use as a reference.
 
 I plan to train the pose estimation part on data they used (likely MPII), then train the action recognition part on data I created myself (look up transfer learning for more--maybe can train most of action recognition architecture on broader data and only learn weights for last few blocks).
 

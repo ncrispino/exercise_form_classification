@@ -19,7 +19,7 @@ class Inception1(nn.Module):
     
     def forward(self, x):
         out1 = self.conv(x)
-        out2 = self.pool(x)
+        out2 = self.pool(x)        
         return torch.cat((out1, out2), dim=1)
 
 class Inception2(nn.Module):
@@ -29,10 +29,10 @@ class Inception2(nn.Module):
     def __init__(self):
         super().__init__()
         self.left = nn.Sequential(
-            ConvBlock(192, 64, kernel_size=1), 
-            ConvBlock(64, 96, kernel_size=3), padding='same')
+            ConvBlock(160, 64, kernel_size=1), 
+            ConvBlock(64, 96, kernel_size=3, padding='same'))
         self.right = nn.Sequential(
-            ConvBlock(192, 64, kernel_size=1),
+            ConvBlock(160, 64, kernel_size=1),
             ConvBlock(64, 64, kernel_size=(5, 1), padding='same'),
             ConvBlock(64, 64, kernel_size=(1, 5), padding='same'),
             ConvBlock(64, 96, kernel_size=(3, 3), padding='same')
@@ -56,14 +56,18 @@ class MultitaskStem(nn.Module):
             ConvBlock(32, 32, kernel_size=3, padding='same'), # 32x128x128
             ConvBlock(32, 64, kernel_size=3, padding='same') # 64x128x128
         )
-        self.inception1 = Inception1(64, 96, ckernel=3, cstride=2, pkernel=3, pstride=2, cpadding=1, ppadding=1) #192x64x64
+        self.inception1 = Inception1(64, 96, ckernel_size=3, cstride=2, pkernel_size=3, pstride=2, cpadding=1, ppadding=1) #160x64x64
         self.inception2 = Inception2() #(96x64x64, 96x64x64) = 192x64x64
-        self.inception3 = Inception1(192, 192, ckernel=3, cstride=2, pkernel=2, pstride=2, cpadding=1, ppadding=0) #(192x32x32, 192x32x32) = 384x32x32  
+        self.inception3 = Inception1(192, 192, ckernel_size=3, cstride=2, pkernel_size=2, pstride=2, cpadding=1, ppadding=0) #(192x32x32, 192x32x32) = 384x32x32  
         self.sr = SRBlock(384, 576, 3) #576x32x32
     
     def forward(self, x):
-        x = self.initial_convs(x)
+        out = self.initial_convs(x)        
+        out = self.inception1(out)        
+        out = self.inception2(out)
+        out = self.inception3(out)
+        out = self.sr(out)
+        return out
 
     # To-do:
-        # Make sure dim is correct for torch.cat
         # See if I need to do batch normalization and relu after depthwise separable convs
