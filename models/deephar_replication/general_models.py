@@ -117,3 +117,17 @@ class GlobalMaxPlusMinPooling(nn.Module):
         max_pool = torch.amax(x, dim=(2, 3)) 
         min_pool = torch.amax(-x, dim=(2, 3))    
         return max_pool - min_pool
+
+def kronecker_prod(a, b):
+    """
+    Multiplies a and b by channel. Returns B x C1 x C2 x H x W tensor
+    a -- B x T x C1 x H x W tensor
+    b -- B x T x C2 x H x W tensor
+    """
+    C1 = a.shape[-3]
+    C2 = b.shape[-3]
+    a = a.unsqueeze(-3)
+    b = b.unsqueeze(-4)
+    a = a.tile(1, 1, 1, C2, 1, 1)
+    b = b.tile(1, 1, C1, 1, 1, 1)
+    return a * b

@@ -86,7 +86,7 @@ class ActionCombined(nn.Module):
     See Figure 5 for more.
     pose_rec -- True if doing pose recognition
     """    
-    def __init__(self, pose_rec, N_a, K=4):
+    def __init__(self, pose_rec, N_a, K):
         super().__init__()
         self.N_a = N_a
         self.K = K
@@ -104,11 +104,35 @@ class ActionCombined(nn.Module):
             all_actions[k] = actions            
         return all_actions, out   
 
-def AppearanceExtract(entry_input, prob_maps):
+def appearance_extract(entry_input, prob_maps):
     """
     Extracts localized appearance features to be fed into action blocks.
     entry_input -- 576 x H x W output from global entry flow (multitask stem based on Inception-V4)
     prob_maps -- N_J x H x W probability maps obtained at the end of pose estimation part (softmax applied to heatmaps)
     """
+    out = kronecker_prod(entry_input, prob_maps) # N_f x T x N_J x H x W
+    out = torch.sum(out, dim=(-2, -1)) # N_f x T x N_J
+    return out
 
+class ActionRecognition(nn.Module):
+    """
+    Combines pose-based recognition and appearance-based recognition using a fully-connected layer with Softmax activation.
+    Uses only the action predicted in the last block.
+    """
+    def __init__(self, N_a, K=4):
+        super().__init__()
+        self.N_a = N_a
+        self.K = K
+        self.pose_rec = ActionCombined(True, N_a, K)
+        self.action_rec = ActionCombined(False, N_a, K)
+        self.fc = nn.Linear(2 * N_a, N_a)
+        self.softmax = nn.Softmax()
+    
+    def forward(self, pose_input, entry_input, prob_maps):
+        appearance_input = appearance_extract(entry_input, prob_maps)
+        pose_actions, pose_out = self.pose_rec(pose_input)
+        appearance_actions, appearance_out = self.action_rec(appearance_input)
+        fc_input = torch.cat((pose_actions[-1], appearance_actions[-1]), dim=0) # isolate actions in last block
+        out = self.softmax(self.fc(fc_input))
+        return out
         
