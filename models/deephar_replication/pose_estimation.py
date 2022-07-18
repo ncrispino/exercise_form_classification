@@ -61,7 +61,8 @@ class PoseUpBlock(nn.Module):
     
     def forward(self, x):
         """
-        Returns location of all joints (N_J x 3) from volumetric heat maps with soft-argmax applied 
+        Returns xy heatmaps, 
+        location of all joints (N_J x 3) from volumetric heat maps with soft-argmax applied, 
         and output 576x32x32 to be fed into the next block.    
         """
         out1 = self.sc(x)
@@ -76,7 +77,7 @@ class PoseUpBlock(nn.Module):
         joints = torch.cat((joints_xy, joints_z), dim=1)
         # after heatmaps
         out2 = self.conv2(out2)
-        return joints, x + self.relu(self.batch_norm(out1 + out2))
+        return heatmaps_xy, joints, x + self.relu(self.batch_norm(out1 + out2))
 
 class PoseBlock(nn.Module):
     """
@@ -89,14 +90,15 @@ class PoseBlock(nn.Module):
     
     def forward(self, x):
         out = self.pose_down(x)
-        joints, out = self.pose_up(out)
-        return joints, out
+        heatmaps, joints, out = self.pose_up(out)
+        return heatmaps, joints, out
 
 class PoseEstimation(nn.Module):
     """
     Combines K pose blocks together.
-    Returns K different joint estimation vectors of dimension N_J x D (obtained from the heatmaps) in a list, 
-    as well as a tensor of dimension 576 x 32 x 32.
+    Returns the xy heatmaps obtained from the Kth block,
+    K different joint estimation vectors of dimension N_J x D (obtained from the heatmaps) in a list, 
+    and a tensor of dimension 576 x 32 x 32.
     """
     def __init__(self, N_J, N_d=16, K=8):
         super().__init__()
@@ -109,6 +111,6 @@ class PoseEstimation(nn.Module):
         all_joints = torch.zeros((self.K, self.N_J, 3)) # holds (x, y, z) for each joint from each prediction block
         out = x
         for k, block in enumerate(self.prediction_blocks):
-            joints, out = block(out)
+            heatmaps, joints, out = block(out)
             all_joints[k] = joints
-        return all_joints, out
+        return heatmaps, all_joints, out

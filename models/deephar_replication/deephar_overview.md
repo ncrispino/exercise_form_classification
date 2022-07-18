@@ -16,6 +16,7 @@ To run, I need to set the number of joints, N_J. In the paper, they use N_J = nu
 ### To-do
 - finish softargmax
 - may need to return probability maps separately to feed into action recognition
+- make sure action convs are right dim
 - investigate relus and batch norm (see below)
 
 ### Model Changes
