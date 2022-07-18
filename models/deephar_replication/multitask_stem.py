@@ -41,7 +41,7 @@ class Inception2(nn.Module):
     def forward(self, x):
         return torch.cat((self.left(x), self.right(x)), dim=1)
 
-class MultitaskStem(nn.Module):
+class EntryFlow(nn.Module):
     """
     Combine according to network architecture.
     Input assumed to be 3x256x256.

@@ -28,7 +28,7 @@ class SCBlock(nn.Module):
         self.n_out = n_out     
         self.include_batch_relu = include_batch_relu 
         # use n_in separate kernels of dim 1 x kernel_size x kernel_size, each for one channel, and concatenate together using pointwise conv
-        self.depthwise_conv = nn.Conv2d(n_in, n_in, kernel_size=s, groups=n_in, padding='same') # as input and output both have W x H, as seen in Figure 10 of paper
+        self.depthwise_conv = nn.Conv2d(n_in, n_in, kernel_size=s, groups=n_in, padding='same') # as input and output both have H x W, as seen in Figure 10 of paper
         # use a 1x1 conv to increase output dim
         self.pointwise_conv = nn.Conv2d(n_in, n_out, kernel_size=1)
         self.batch_norm = nn.BatchNorm2d(n_out)
@@ -107,7 +107,7 @@ class GlobalMaxPlusMinPooling(nn.Module):
     """
     GlobalMaxPlusMin pooling implemented according to max_min_pooling in deephar/layers.py from the paper's code. This is 2D pooling.
     Global max pooling takes the max value for each channel. For more, see https://peltarion.com/knowledge-center/documentation/modeling-view/build-an-ai-model/blocks/global-max-pooling-2d.
-    Input: C x W x H
+    Input: C x H x W
     Output: C
     """
     def __init__(self):

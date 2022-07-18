@@ -66,9 +66,9 @@ class PoseUpBlock(nn.Module):
         """
         out1 = self.sc(x)
         out2 = self.conv1(out1)        
-        # reshape to get B x N_J x N_d x W x H
+        # reshape to get B x N_J x N_d x H x W
         heatmaps = out2.view(-1, self.N_J, self.N_d, out2.shape[2], out2.shape[3])
-        # average the N_d heatmaps for each N_J to get N_J x W x H
+        # average the N_d heatmaps for each N_J to get N_J x H x W
         heatmaps_xy = torch.mean(heatmaps, dim=2) # avg on Z
         joints_xy = self.softargmax2(heatmaps_xy)
         heatmaps_z = torch.mean(heatmaps, dim=(3, 4)) # avg on x & y

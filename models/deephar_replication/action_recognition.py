@@ -54,6 +54,7 @@ class ActionBlock(nn.Module):
     N_a -- number of actions
     """
     def __init__(self, pose_rec, N_a):
+        super().__init__()
         self.N_a = N_a
         self.conv1 = ConvBlock(224, 112, 1)
         self.conv2 = ConvBlock(112, 224, 3)
@@ -62,6 +63,52 @@ class ActionBlock(nn.Module):
         self.conv4 = ConvBlock(224, N_a, 3)
         self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
         self.conv5 = ConvBlock(224, 224, 3)
-        self.global_maxplusmin = GlobalMaxPlusMinPooling(2)
+        self.global_maxplusmin = GlobalMaxPlusMinPooling() # input: N_a x H x W. output: N_a
+        self.softmax = nn.Softmax()
     
     def forward(self, x):
+        out = self.conv2(self.conv1(x))
+        out = x + out
+        out1 = self.conv3(out)
+        out2 = self.maxplusmin(out1)
+        heatmaps = self.conv4(out2)
+        out2 = self.upsample(heatmaps)
+        out2 = self.conv5(out2)
+        out2 = out2 + out1
+        out = out + out2
+        actions = self.global_maxplusmin(heatmaps)
+        actions = self.softmax(actions)
+        return actions, out
+
+class ActionCombined(nn.Module):
+    """
+    Pose recognition using K action recognition blocks -- a 'stacked architecture with intermediate supervision'
+    See Figure 5 for more.
+    pose_rec -- True if doing pose recognition
+    """    
+    def __init__(self, pose_rec, N_a, K=4):
+        super().__init__()
+        self.N_a = N_a
+        self.K = K
+        self.action_blocks = [ActionBlock(pose_rec=pose_rec, N_a=self.N_a) for i in range(K)]        
+    
+    def forward(self, x):
+        all_actions = torch.zeros((self.K, self.N_a)) # holds a scalar for each action from each prediction block
+        # keep track of output of previous block and add to input of next block
+        out = x             
+        prev_out = 0   
+        for k, block in enumerate(self.action_blocks):      
+            actions, new_out = block(out + prev_out)
+            prev_out = out
+            out = new_out           
+            all_actions[k] = actions            
+        return all_actions, out   
+
+def AppearanceExtract(entry_input, prob_maps):
+    """
+    Extracts localized appearance features to be fed into action blocks.
+    entry_input -- 576 x H x W output from global entry flow (multitask stem based on Inception-V4)
+    prob_maps -- N_J x H x W probability maps obtained at the end of pose estimation part (softmax applied to heatmaps)
+    """
+
+        
