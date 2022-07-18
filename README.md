@@ -13,6 +13,8 @@ To-do.
 ## Methodology
 As I care about how the joints are stacked, I want to use human pose estimation, then use the body positioning to classify the image. A 'perfectly straight' handstand, perhaps according to averaging from the training data, will be overlayed over the provided image to explain the differences. Right now, I'm thinking of using a pre-trained model for pose estimation, then using a model I replicated for action recognition. OR, I could do both in the same model, but it would require a lot of GPU power. Then, to show what they did wrong, perhaps I can transform the user inputted handstand into a straight-line handstand and place the images side-by-side, so that they could see where they're going wrong. To do this, I think I will use a General Adversarial Network (GAN), perhaps using the vector of results from the pose estimate as an input in addition to the image.
 
+To accomplish the initial task, I will implement "2D/3D Pose Estimation and Action Recognition using Multitask Deep Learning" from scratch in PyTorch. I will be using the paper and the authors' Tensorflow code to do so.
+
 ## Dataset
 To-do.
 

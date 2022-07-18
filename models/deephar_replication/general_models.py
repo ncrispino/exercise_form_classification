@@ -74,9 +74,46 @@ class SRBlock(nn.Module):
             out = self.relu(out)
         return out
 
-class SoftArgMax():
+class SoftArgMax(nn.Module):
     """
-    Soft-argmax operation.
+    NOT FINISHED
+    Soft-argmax operation. Returns C x 2 if 2D, C x 1 if 1D.
     """
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+
+    def forward(self, x):
+        if self.dim == 2:
+            return torch.randint(0, 1, size=(17, 2))
+        if self.dim == 1:
+            return torch.randint(0, 1, size=(17, 1))
+
+class MaxPlusMinPooling(nn.Module):
+    """
+    MaxPlusMin pooling implemented according to max_min_pooling in deephar/layers.py from the paper's code.
+    """
+    def __init__(self, kernel_size, stride):
+        super().__init__()
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.maxpool = nn.MaxPool2d(kernel_size, stride)
+        self.minpool = nn.MaxPool2d(kernel_size, stride)
+
     def __call__(self, x):
-        pass
+        return self.maxpool(x) - self.minpool(-x)
+
+class GlobalMaxPlusMinPooling(nn.Module):
+    """
+    GlobalMaxPlusMin pooling implemented according to max_min_pooling in deephar/layers.py from the paper's code. This is 2D pooling.
+    Global max pooling takes the max value for each channel. For more, see https://peltarion.com/knowledge-center/documentation/modeling-view/build-an-ai-model/blocks/global-max-pooling-2d.
+    Input: C x W x H
+    Output: C
+    """
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        max_pool = torch.amax(x, dim=(2, 3)) 
+        min_pool = torch.amax(-x, dim=(2, 3))    
+        return max_pool - min_pool
