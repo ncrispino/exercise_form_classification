@@ -93,12 +93,12 @@ class MaxPlusMinPooling(nn.Module):
     """
     MaxPlusMin pooling implemented according to max_min_pooling in deephar/layers.py from the paper's code.
     """
-    def __init__(self, kernel_size, stride):
+    def __init__(self, kernel_size, stride=2, padding=0):
         super().__init__()
         self.kernel_size = kernel_size
         self.stride = stride
-        self.maxpool = nn.MaxPool2d(kernel_size, stride)
-        self.minpool = nn.MaxPool2d(kernel_size, stride)
+        self.maxpool = nn.MaxPool2d(kernel_size, stride, padding=padding)
+        self.minpool = nn.MaxPool2d(kernel_size, stride, padding=padding)
 
     def __call__(self, x):
         return self.maxpool(x) - self.minpool(-x)
