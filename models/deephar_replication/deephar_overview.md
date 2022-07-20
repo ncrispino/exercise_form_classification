@@ -16,7 +16,6 @@ To run, I need to set the number of joints, N_J. In the paper, they use N_J = nu
 ### To-do
 - finish softargmax
 - may need to return probability maps separately to feed into action recognition
-- make sure action convs are right dim -- also make sure maxplusmin pooling is equivalent to tf 'same' -- it may only work for my given shape inputs.
 - **make work with T dimensions -- incrementally test all action rec blocks**  see if there's an alternative to Keras' TimeDistributed for PyTorch
 - investigate relus and batch norm (see below)
 
@@ -26,6 +25,9 @@ To run, I need to set the number of joints, N_J. In the paper, they use N_J = nu
 - Figuring out how to extract joint locations from the heatmaps (in PoseUpBlock) was pretty difficult for me. I looked at the implementation in the paper and was still confused; my implementation may be fairly different, though I think I figured it out by looking at the paper's code.
 - When there's skip connections, I may not apply batch norm and relu's correctly. **Worth it to look back into this--analyze paper's code again**
 - Model treats all inputs as 3D (if they're 2D, will be treated as 3D with depth dimension of 1)
+    - this is more complex than it seems, as in the ActionBlock, the output will have dim 0, throwing an error.
+- I was having trouble making sure action convs are right dim -- also make sure maxplusmin pooling is equivalent to tf 'same' -- it may only work for my given shape inputs.
+    - Feeding an odd input into ActionBlock (like (1, 3, 10, 17) will get an error, as the pooling results in (1, 3, 5, 8) while the upsampling results in(1, 3, 6, 8)). I'm not sure how the authors deal with this--it only seems like a problem when the latter two dimensions of the N_f x T x N_J input are odd. It seems they use an even number of joints, meaning it's not a problem, and also batches of 2 video clips. So, they use all even numbers, which may be why there's no error. If I do want to use an odd number, I will add zero padding. This is done in the *ActionBlock method*.
 
 ### Misc
 I didn't find any PyTorch implementations on [paperswithcode.com](https://paperswithcode.com/paper/2d3d-pose-estimation-and-action-recognition), though it says there is one. So, this will be somewhat novel for that reason (though I'm sure an implementation in PyTorch does exist).

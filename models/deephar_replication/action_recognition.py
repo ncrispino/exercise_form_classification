@@ -51,7 +51,7 @@ class ActionBlock(nn.Module):
     """
     Action prediction block.
     Takes in input of B x N_f x T x N_J
-    Outputs softmax from action heat maps and a tensor of shape B x 224 x T/2 x N_J/2.
+    Outputs softmax from action heat maps of shape N_a and a tensor of shape B x 224 x T/2 x N_J/2.
     pose_rec -- true if doing pose recognition (each conv does half the features that appearance recognition does)
     N_a -- number of actions
     """
@@ -65,31 +65,35 @@ class ActionBlock(nn.Module):
         self.conv1 = ConvBlock(dim, dim//2, 1, padding='same')
         self.conv2 = ConvBlock(dim//2, dim, 3, padding='same')
         self.conv3 = ConvBlock(dim, dim, 3, padding='same')
-        self.maxplusmin = MaxPlusMinPooling(2, padding=0) # padding should be 'same' in tf
         self.conv4 = ConvBlock(dim, N_a, 3, padding='same')
         self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
         self.conv5 = ConvBlock(N_a, dim, 3, padding='same')
         self.global_maxplusmin = GlobalMaxPlusMinPooling() # input: N_a x H x W. output: N_a
-        self.softmax = nn.Softmax()
+        self.softmax = nn.Softmax(0)
     
     def forward(self, x):
+        padding = [0, 0, 0, 0]
+        if x.shape[-1] % 2 == 1:
+            padding[1] = 1 # padding right
+        if x.shape[-2] % 2 == 1:
+            padding[3] = 1 # padding bottom
+        input_pad = nn.ZeroPad2d(padding)
+        maxplusmin = MaxPlusMinPooling(2) # padding should be equivalent to 'same' in tf
+
+        x = input_pad(x)
         out = self.conv2(self.conv1(x))
         out = x + out
-        out1 = self.conv3(out)
-        print(out1.shape)
-        out2 = self.maxplusmin(out1)
-        print(out2.shape)
-        heatmaps = self.conv4(out2)
-        print(heatmaps.shape)
-        out2 = self.upsample(heatmaps)
-        print(out2.shape)
-        out2 = self.conv5(out2)
-        print(out2.shape)
+        out1 = self.conv3(out)           
+        out2 = maxplusmin(out1)        
+        heatmaps = self.conv4(out2)        
+        out2 = self.upsample(heatmaps)        
+        out2 = self.conv5(out2)        
         out2 = out2 + out1
         out = out + out2
         actions = self.global_maxplusmin(heatmaps)
-        actions = self.softmax(actions)
+        actions = self.softmax(actions.flatten())        
         return actions, out
+
 
 class ActionCombined(nn.Module):
     """
