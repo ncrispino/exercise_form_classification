@@ -8,11 +8,11 @@ from action_recognition import *
 
 # entire model
 x = torch.randint(0, 1, size=(2, 10, 3, 256, 256), dtype=torch.float) # B x T x C x H x W
-T = x.shape[1]
+B = x.shape[0]
 mstem = EntryFlow()
 entry_input = mstem(x)
 print(entry_input.shape)
-pose = PoseEstimation(17, T=T)
+pose = PoseEstimation(17, B=B)
 prob_maps, joints, pose_out = pose(entry_input)
 # print(len(joints))
 # print(joints[0].shape)
@@ -24,7 +24,7 @@ print(pose_out.shape)
 # print(joints.shape)
 # out = action(joints, entry_out, heatmaps)
 # print(out.shape)
-action_recognition = ActionRecognition(2, T=T)
+action_recognition = ActionRecognition(2, B=B)
 out = action_recognition(joints, entry_input, prob_maps)
 print(out)
 

@@ -102,11 +102,11 @@ class PoseEstimation(nn.Module):
     the joint estimation vector of dimension B * T x N_J x 3 (obtained from the heatmaps) reshaped to B x 3 x T x N_J from the Kth block,
     and a tensor of dimension B * T x 576 x 32 x 32.
     """
-    def __init__(self, N_J, T, N_d=16, K=8):
+    def __init__(self, N_J, B, N_d=16, K=8):
         super().__init__()
         self.K = K
         self.N_J = N_J
-        self.T = T
+        self.B = B
         self.N_d = N_d
         self.prediction_blocks = [PoseBlock(N_J, N_d) for i in range(K)]        
     
@@ -117,4 +117,4 @@ class PoseEstimation(nn.Module):
         for k, block in enumerate(self.prediction_blocks):
             heatmaps, joints, out = block(out)
             # all_joints[:, k] = joints
-        return heatmaps, joints.view(-1, joints.shape[2], self.T, joints.shape[1]), out
+        return heatmaps, joints.view(self.B, joints.shape[2], -1, joints.shape[1]), out

@@ -94,17 +94,19 @@ class ActionCombined(nn.Module):
     Input of 3 x T x N_J if doing pose recognition.
     Input of N_f x T x N_J if doing appearance recognition.
     pose_rec -- True if doing pose recognition.
+    b -- batches
     """    
-    def __init__(self, pose_rec, N_a, K):
+    def __init__(self, pose_rec, N_a, K, B):
         super().__init__()
         self.N_a = N_a
         self.K = K
+        self.B = B
         self.action_start = ActionStart(pose_rec)
         self.action_blocks = [ActionBlock(pose_rec=pose_rec, N_a=self.N_a) for i in range(K)]        
     
     def forward(self, x):
         up_shape = list(np.array(x.shape[-2:]) // 2) # dimensions to upsample to so I can add outputs in the action blocks
-        all_actions = torch.zeros((self.K, self.N_a)) # holds a scalar for each action from each prediction block
+        # all_actions = torch.zeros((self.K, self.N_a)) # holds a scalar for each action from each prediction block
         # keep track of output of previous block and add to input of next block
         print("action start input: " + str(x.shape))
         out = self.action_start(x)
@@ -113,22 +115,24 @@ class ActionCombined(nn.Module):
             actions, new_out = block(out + prev_out, up_shape=up_shape)
             prev_out = out
             out = new_out           
-            all_actions[k] = actions            
-        return all_actions, out   
+            # all_actions[k] = actions        
+        print("actions: " + str(actions.shape)) 
+        actions = actions.view(self.B, -1)   
+        return actions, out   
 
-def appearance_extract(entry_input, prob_maps, T):
+def appearance_extract(entry_input, prob_maps, B):
     """
     Extracts localized appearance features to be fed into action blocks.     
     Outputs B x N_f x T x N_J.
     entry_input -- B * T x 576 x H x W output from global entry flow (multitask stem based on Inception-V4)
     prob_maps -- B * T x N_J x H x W probability maps obtained at the end of pose estimation part (softmax applied to heatmaps)
-    T -- number of timesteps
+    B -- number of batches
     """
     out = kronecker_prod(entry_input, prob_maps) # B * T x N_f x N_J x H x W    
     print(out.shape)
     out = torch.sum(out, dim=(-2, -1)) # B * T x N_f x N_J    
     print(out.shape)
-    out = out.view(-1, out.shape[1], T, out.shape[2])
+    out = out.view(B, out.shape[1], -1, out.shape[2])
     return out
 
 class ActionRecognition(nn.Module):
@@ -136,20 +140,20 @@ class ActionRecognition(nn.Module):
     Combines pose-based recognition and appearance-based recognition using a fully-connected layer with Softmax activation.
     Uses only the action predicted in the last block.
     pose_input -- B * T x N_J x 3 input from joints for each timestep
-    T -- number of timesteps
+    B -- number of batches
     """
-    def __init__(self, N_a, T, K=4):
+    def __init__(self, N_a, B, K=4):
         super().__init__()
         self.N_a = N_a
-        self.T = T
+        self.B = B
         self.K = K        
-        self.pose_rec = ActionCombined(True, N_a, K)
-        self.action_rec = ActionCombined(False, N_a, K)
+        self.pose_rec = ActionCombined(True, N_a, K, B)
+        self.action_rec = ActionCombined(False, N_a, K, B)
         self.fc = nn.Linear(2 * N_a, N_a)
         self.softmax = nn.Softmax()
     
     def forward(self, pose_input, entry_input, prob_maps):
-        appearance_input = appearance_extract(entry_input, prob_maps, self.T)
+        appearance_input = appearance_extract(entry_input, prob_maps, self.B)
         pose_actions, pose_out = self.pose_rec(pose_input)
         appearance_actions, appearance_out = self.action_rec(appearance_input)
         fc_input = torch.cat((pose_actions[-1], appearance_actions[-1]), dim=0) # isolate actions in last block
