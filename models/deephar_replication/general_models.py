@@ -85,9 +85,9 @@ class SoftArgMax(nn.Module):
 
     def forward(self, x):
         if self.dim == 2:
-            return torch.randint(0, 1, size=(17, 2))
+            return torch.randint(0, 1, size=(20, 17, 2), dtype=torch.float)
         if self.dim == 1:
-            return torch.randint(0, 1, size=(17, 1))
+            return torch.randint(0, 1, size=(20, 17, 1), dtype=torch.float)
 
 class MaxPlusMinPooling(nn.Module):
     """
@@ -121,13 +121,13 @@ class GlobalMaxPlusMinPooling(nn.Module):
 def kronecker_prod(a, b):
     """
     Multiplies a and b by channel. Returns B x C1 x C2 x H x W tensor
-    a -- B x T x C1 x H x W tensor
-    b -- B x T x C2 x H x W tensor
+    a -- B * T x C1 x H x W tensor
+    b -- B * T x C2 x H x W tensor
     """
     C1 = a.shape[-3]
     C2 = b.shape[-3]
     a = a.unsqueeze(-3)
     b = b.unsqueeze(-4)
-    a = a.tile(1, 1, 1, C2, 1, 1)
-    b = b.tile(1, 1, C1, 1, 1, 1)
+    a = a.tile(1, 1, C2, 1, 1)
+    b = b.tile(1, C1, 1, 1, 1)
     return a * b

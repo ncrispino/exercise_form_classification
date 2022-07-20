@@ -44,7 +44,8 @@ class Inception2(nn.Module):
 class EntryFlow(nn.Module):
     """
     Combine according to network architecture.
-    Input assumed to be 3x256x256.
+    Input assumed to be B x T x 3 x 256 x 256.
+    Output is B * T x 576 x 32 x 32.
     Note that in the Tensorflow Implementation, padding='same' in the conv layers, meaning the output_dim = ceil(input_dim/stride)
         See https://stackoverflow.com/questions/53819528/how-does-tf-keras-layers-conv2d-with-padding-same-and-strides-1-behave for more.
         Since PyTorch doesn't accept 'same' for a stride > 1, I instead added padding s.t. the arithmatic worked out.
@@ -62,6 +63,7 @@ class EntryFlow(nn.Module):
         self.sr = SRBlock(384, 576, 3) #576x32x32
     
     def forward(self, x):
+        x = x.view(-1, x.shape[2], x.shape[3], x.shape[4])
         out = self.initial_convs(x)        
         out = self.inception1(out)        
         out = self.inception2(out)

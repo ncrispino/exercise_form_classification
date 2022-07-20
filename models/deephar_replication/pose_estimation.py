@@ -54,8 +54,8 @@ class PoseUpBlock(nn.Module):
         self.sc = SCBlock(576, 576, 5)
         self.conv1 = ConvBlock(576, N_d * N_J, 1)
         self.conv2 = ConvBlock(N_d * N_J, 576, 1)
-        self.softargmax1 = SoftArgMax(1)
-        self.softargmax2 = SoftArgMax(2)
+        self.softargmax_xy = SoftArgMax(2)
+        self.softargmax_z = SoftArgMax(1)
         self.batch_norm = nn.BatchNorm2d(576)
         self.relu = nn.ReLU()
     
@@ -63,18 +63,20 @@ class PoseUpBlock(nn.Module):
         """
         Returns xy heatmaps, 
         location of all joints (N_J x 3) from volumetric heat maps with soft-argmax applied, 
-        and output 576x32x32 to be fed into the next block.    
+        and output 576 x 32 x 32 to be fed into the next block.    
         """
         out1 = self.sc(x)
         out2 = self.conv1(out1)        
         # reshape to get B x N_J x N_d x H x W
         heatmaps = out2.view(-1, self.N_J, self.N_d, out2.shape[2], out2.shape[3])
-        # average the N_d heatmaps for each N_J to get N_J x H x W
+        # average the N_d heatmaps for each N_J to get B x N_J x H x W
         heatmaps_xy = torch.mean(heatmaps, dim=2) # avg on Z
-        joints_xy = self.softargmax2(heatmaps_xy)
-        heatmaps_z = torch.mean(heatmaps, dim=(3, 4)) # avg on x & y
-        joints_z = self.softargmax1(heatmaps_z)
-        joints = torch.cat((joints_xy, joints_z), dim=1)
+        joints_xy = self.softargmax_xy(heatmaps_xy)
+        print("softmax heatmaps xy: " + str(joints_xy.shape))
+        heatmaps_z = torch.mean(heatmaps, dim=(3, 4)) # avg on x & y        
+        joints_z = self.softargmax_z(heatmaps_z)
+        print("softmax heatmaps z: " + str(joints_z.shape))
+        joints = torch.cat((joints_xy, joints_z), dim=2)
         # after heatmaps
         out2 = self.conv2(out2)
         return heatmaps_xy, joints, x + self.relu(self.batch_norm(out1 + out2))
@@ -97,20 +99,22 @@ class PoseEstimation(nn.Module):
     """
     Combines K pose blocks together.
     Returns the xy heatmaps obtained from the Kth block,
-    K different joint estimation vectors of dimension N_J x D (obtained from the heatmaps) in a list, 
-    and a tensor of dimension 576 x 32 x 32.
+    the joint estimation vector of dimension B * T x N_J x 3 (obtained from the heatmaps) reshaped to B x 3 x T x N_J from the Kth block,
+    and a tensor of dimension B * T x 576 x 32 x 32.
     """
-    def __init__(self, N_J, N_d=16, K=8):
+    def __init__(self, N_J, T, N_d=16, K=8):
         super().__init__()
         self.K = K
         self.N_J = N_J
+        self.T = T
         self.N_d = N_d
         self.prediction_blocks = [PoseBlock(N_J, N_d) for i in range(K)]        
     
     def forward(self, x):
-        all_joints = torch.zeros((self.K, self.N_J, 3)) # holds (x, y, z) for each joint from each prediction block
+        print("x bach: " + str(x.shape))
+        # all_joints = torch.zeros((x.shape[0], self.K, self.N_J, 3)) # holds (x, y, z) for each joint from each prediction block
         out = x
         for k, block in enumerate(self.prediction_blocks):
             heatmaps, joints, out = block(out)
-            all_joints[k] = joints
-        return heatmaps, all_joints, out
+            # all_joints[:, k] = joints
+        return heatmaps, joints.view(-1, joints.shape[2], self.T, joints.shape[1]), out
