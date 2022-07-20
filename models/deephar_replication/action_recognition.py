@@ -64,8 +64,7 @@ class ActionBlock(nn.Module):
         self.conv2 = ConvBlock(dim // 2, dim, 3, padding='same')
         self.conv3 = ConvBlock(dim, dim, 3, padding='same')
         self.maxplusmin = MaxPlusMinPooling(2) # padding should be equivalent to 'same' in tf -- done in forward as it's based on output
-        self.conv4 = ConvBlock(dim, N_a, 3, padding='same')
-        # self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
+        self.conv4 = ConvBlock(dim, N_a, 3, padding='same')        
         self.conv5 = ConvBlock(N_a, dim, 3, padding='same')
         self.global_maxplusmin = GlobalMaxPlusMinPooling() # input: N_a x H x W. output: N_a
         self.softmax = nn.Softmax(0)
@@ -114,8 +113,7 @@ class ActionCombined(nn.Module):
         for k, block in enumerate(self.action_blocks):      
             actions, new_out = block(out + prev_out, up_shape=up_shape)
             prev_out = out
-            out = new_out           
-            # all_actions[k] = actions        
+            out = new_out                             
         print("actions: " + str(actions.shape)) 
         actions = actions.view(self.B, -1)   
         return actions, out   
@@ -150,13 +148,13 @@ class ActionRecognition(nn.Module):
         self.pose_rec = ActionCombined(True, N_a, K, B)
         self.action_rec = ActionCombined(False, N_a, K, B)
         self.fc = nn.Linear(2 * N_a, N_a)
-        self.softmax = nn.Softmax()
+        self.softmax = nn.Softmax(dim=1)
     
     def forward(self, pose_input, entry_input, prob_maps):
         appearance_input = appearance_extract(entry_input, prob_maps, self.B)
         pose_actions, pose_out = self.pose_rec(pose_input)
-        appearance_actions, appearance_out = self.action_rec(appearance_input)
-        fc_input = torch.cat((pose_actions[-1], appearance_actions[-1]), dim=0) # isolate actions in last block
-        out = self.softmax(self.fc(fc_input))
+        appearance_actions, appearance_out = self.action_rec(appearance_input)        
+        fc_input = torch.cat((pose_actions, appearance_actions), dim=1) # isolate actions in last block B x 2 * N_a        
+        out = self.softmax(self.fc(fc_input)) # output of fc is B x N_a then softmax N_a to get probabilities
         return out
         

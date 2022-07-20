@@ -26,7 +26,7 @@ print(pose_out.shape)
 # print(out.shape)
 action_recognition = ActionRecognition(2, B=B)
 out = action_recognition(joints, entry_input, prob_maps)
-print(out)
+print(out.shape, out[0], out[1])
 
 # global pooling
 # global_mpm = GlobalMaxPlusMinPooling()
