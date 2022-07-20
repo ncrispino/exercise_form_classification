@@ -3,6 +3,7 @@ Contains model for action recognition, which contains the pose-based recognition
 The same general architecture is used for both, as seen in Figure 13.
 """
 from general_models import *
+import numpy as np
 
 class ActionStart(nn.Module):
     """
@@ -34,7 +35,6 @@ class ActionStart(nn.Module):
         self.maxplusmin = MaxPlusMinPooling(2, padding=0)
     
     def forward(self, x):
-        print("x: " + str(x.shape))
         out_left = self.conv_left1(x)
         out_middle = self.conv_middle1(x)
         out_right = self.conv_right1(x)        
@@ -42,9 +42,7 @@ class ActionStart(nn.Module):
         out_left1 = self.conv_left2(out)
         out_right1 = self.conv_right2(out)
         out1 = torch.cat((out_left1, out_right1), dim=1)
-        print("out1: " + str(out1.shape))
         out1 = self.maxplusmin(out1)
-        print("out1post: " + str(out1.shape))
         return out1
 
 class ActionBlock(nn.Module):
@@ -62,29 +60,24 @@ class ActionBlock(nn.Module):
             dim = 112
         else:
             dim = 224
-        self.conv1 = ConvBlock(dim, dim//2, 1, padding='same')
-        self.conv2 = ConvBlock(dim//2, dim, 3, padding='same')
+        self.conv1 = ConvBlock(dim, dim // 2, 1, padding='same')
+        self.conv2 = ConvBlock(dim // 2, dim, 3, padding='same')
         self.conv3 = ConvBlock(dim, dim, 3, padding='same')
+        self.maxplusmin = MaxPlusMinPooling(2) # padding should be equivalent to 'same' in tf -- done in forward as it's based on output
         self.conv4 = ConvBlock(dim, N_a, 3, padding='same')
-        self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
+        # self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
         self.conv5 = ConvBlock(N_a, dim, 3, padding='same')
         self.global_maxplusmin = GlobalMaxPlusMinPooling() # input: N_a x H x W. output: N_a
         self.softmax = nn.Softmax(0)
     
-    def forward(self, x):
-        padding = [0, 0, 0, 0]
-        if x.shape[-1] % 2 == 1:
-            padding[1] = 1 # padding right
-        if x.shape[-2] % 2 == 1:
-            padding[3] = 1 # padding bottom
-        input_pad = nn.ZeroPad2d(padding)
-        maxplusmin = MaxPlusMinPooling(2) # padding should be equivalent to 'same' in tf
+    def forward(self, x, up_shape):    
+        # upsample according to previous shape from
+        self.upsample = nn.Upsample(size=up_shape, mode='nearest')
 
-        x = input_pad(x)
         out = self.conv2(self.conv1(x))
         out = x + out
         out1 = self.conv3(out)           
-        out2 = maxplusmin(out1)        
+        out2 = self.maxplusmin(out1)        
         heatmaps = self.conv4(out2)        
         out2 = self.upsample(heatmaps)        
         out2 = self.conv5(out2)        
@@ -114,7 +107,7 @@ class ActionCombined(nn.Module):
         out = self.action_start(x)
         prev_out = 0   
         for k, block in enumerate(self.action_blocks):      
-            actions, new_out = block(out + prev_out)
+            actions, new_out = block(out + prev_out, up_shape=list(np.array(x.shape[-2:]) // 2))
             prev_out = out
             out = new_out           
             all_actions[k] = actions            
@@ -126,10 +119,8 @@ def appearance_extract(entry_input, prob_maps):
     entry_input -- 576 x H x W output from global entry flow (multitask stem based on Inception-V4)
     prob_maps -- N_J x H x W probability maps obtained at the end of pose estimation part (softmax applied to heatmaps)
     """
-    out = kronecker_prod(entry_input, prob_maps) # N_f x T x N_J x H x W
-    print("kronout: " + str(out.shape))
-    out = torch.sum(out, dim=(-2, -1)) # N_f x T x N_J
-    print("kronout: " + str(out.shape))
+    out = kronecker_prod(entry_input, prob_maps) # N_f x T x N_J x H x W    
+    out = torch.sum(out, dim=(-2, -1)) # N_f x T x N_J    
     return out
 
 class ActionRecognition(nn.Module):

@@ -29,10 +29,13 @@ from action_recognition import *
 # pool_out = global_mpm(pool_test)
 # print(pool_out.shape)
 
-# testing only action
-# pose rec
+# testing only action recognition
+# for joints
 x = torch.randint(0, 1, size=(1, 3, 10, 17), dtype=torch.float) # B x N_f x T x N_J
-action_start = ActionStart(True)
-out = action_start(x)
-action_block = ActionBlock(True, 2)
-actions, out = action_block(out)
+# action_start = ActionStart(True)
+# out = action_start(x)
+# action_block = ActionBlock(True, 2)
+# actions, out = action_block(out)
+action_combined = ActionCombined(True, 2, 4)
+actions, out = action_combined(x)
+print(out.shape)
