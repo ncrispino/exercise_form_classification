@@ -17,9 +17,10 @@ To accomplish the initial task, I will implement "2D/3D Pose Estimation and Acti
 
 ## Dataset
 To-do.
+Download Google Images then use a program to label easily.
 
 ## Sources
-### Papers Implemented
+### Papers Implemented/Code Used
 - [2D/3D Pose Estimation and Action Recognition using Multitask Deep Learning](https://arxiv.org/pdf/1802.09232.pdf) combining action recognition and pose estimation using one network. **I'm currently in the process of implementing**.
 
 ### Combining Action Recognition and Pose Estimation
