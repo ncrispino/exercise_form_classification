@@ -81,6 +81,10 @@ class SoftArgMax(nn.Module):
     """
     def forward(self, x):
         super().__init__()
+        dim1 = False
+        if len(x.shape) == 3: # adds dimension to end if 1D
+            dim1 = True
+            x = x.unsqueeze(-1)            
         H = x.shape[2]
         W = x.shape[3]
         # Apply softmax to each H x W (spacial softmax)
@@ -97,7 +101,11 @@ class SoftArgMax(nn.Module):
         # multiply prob maps times weight tensors and sum over H x W        
         height_out = (x_prob * height_tensor).sum((2, 3))
         width_out = (x_prob * width_tensor).sum((2, 3))
-        return torch.cat((width_out.unsqueeze(-1), height_out.unsqueeze(-1)), dim=-1) # returns (x, y), which corresponds to (W, H)
+        out = torch.cat((width_out.unsqueeze(-1), height_out.unsqueeze(-1)), dim=-1) # returns (x, y), which corresponds to (W, H)
+        print("this x shape: " + str(len(x.shape)))
+        if dim1:            
+            return out[:, :, 1].unsqueeze(-1) # return only height_out, as width was only dim 1
+        return out
 
 class MaxPlusMinPooling(nn.Module):
     """

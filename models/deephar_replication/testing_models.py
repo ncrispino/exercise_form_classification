@@ -38,6 +38,10 @@ from action_recognition import *
 # print(out.shape)
 
 # softargmax
-x = torch.randint(0, 1, size=(16, 32, 32), dtype=torch.float) # C x H x W
-softargmax = SoftArgMax(2)
-softargmax(x)
+x = torch.randint(0, 1, size=(20, 16, 32, 32), dtype=torch.float) # B x C x H x W
+y = torch.randint(0, 1, size=(20, 16, 15), dtype=torch.float) # B x C x D
+softargmax = SoftArgMax()
+out_x = softargmax(x)
+out_y = softargmax(y)
+print(out_x)
+print(out_y)

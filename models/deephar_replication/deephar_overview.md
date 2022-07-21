@@ -14,7 +14,6 @@ There are 3 parts to this model:
 To run, I need to set the number of joints, N_J. In the paper, they use N_J = number of joints in dataset with most joints.
 
 ### To-do
-- finish softargmax 1D
 - may need to return probability maps separately to feed into action recognition
 - **make work with T dimensions -- incrementally test all action rec blocks**  see if there's an alternative to Keras' TimeDistributed for PyTorch
     - need to convert joints to 3 x T x N_J

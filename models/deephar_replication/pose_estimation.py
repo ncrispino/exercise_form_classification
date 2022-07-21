@@ -54,8 +54,8 @@ class PoseUpBlock(nn.Module):
         self.sc = SCBlock(576, 576, 5)
         self.conv1 = ConvBlock(576, N_d * N_J, 1)
         self.conv2 = ConvBlock(N_d * N_J, 576, 1)
-        self.softargmax_xy = SoftArgMax(2)
-        self.softargmax_z = SoftArgMax(1)
+        self.softargmax_xy = SoftArgMax()
+        self.softargmax_z = SoftArgMax()
         self.batch_norm = nn.BatchNorm2d(576)
         self.relu = nn.ReLU()
     
@@ -70,7 +70,7 @@ class PoseUpBlock(nn.Module):
         # reshape to get B x N_J x N_d x H x W
         heatmaps = out2.view(-1, self.N_J, self.N_d, out2.shape[2], out2.shape[3])
         # average the N_d heatmaps for each N_J to get B x N_J x H x W
-        heatmaps_xy = torch.mean(heatmaps, dim=2) # avg on Z
+        heatmaps_xy = torch.mean(heatmaps, dim=2) # avg on z
         joints_xy = self.softargmax_xy(heatmaps_xy)
         print("softmax heatmaps xy: " + str(joints_xy.shape))
         heatmaps_z = torch.mean(heatmaps, dim=(3, 4)) # avg on x & y        
