@@ -75,19 +75,29 @@ class SRBlock(nn.Module):
         return out
 
 class SoftArgMax(nn.Module):
+    """    
+    Soft-argmax operation. Returns B x C x 2 if 2D, B x C x 1 if 1D.
+    Should provide equivalent output to the softargmax model in the paper.
     """
-    NOT FINISHED
-    Soft-argmax operation. Returns C x 2 if 2D, C x 1 if 1D.
-    """
-    def __init__(self, dim):
-        super().__init__()
-        self.dim = dim
-
     def forward(self, x):
-        if self.dim == 2:
-            return torch.randint(0, 1, size=(20, 17, 2), dtype=torch.float)
-        if self.dim == 1:
-            return torch.randint(0, 1, size=(20, 17, 1), dtype=torch.float)
+        super().__init__()
+        H = x.shape[2]
+        W = x.shape[3]
+        # Apply softmax to each H x W (spacial softmax)
+        softmax = nn.Softmax(2)
+        x_collapsed = x.view(x.shape[0], x.shape[1], -1) # collapse height and width to apply softmax
+        x_prob = softmax(x_collapsed).view(-1, x.shape[1], H, W)        
+        
+        # Create tensor with weights to multiply
+        height_values = torch.arange(0, H).unsqueeze(1)
+        width_values = torch.arange(0, W).unsqueeze(0)
+        height_tensor = torch.tile(height_values, (1, W))/(H - 1) # each row has row idx/num rows
+        width_tensor = torch.tile(width_values, (H, 1))/(W - 1) # each col has col idx/num cols
+
+        # multiply prob maps times weight tensors and sum over H x W        
+        height_out = (x_prob * height_tensor).sum((2, 3))
+        width_out = (x_prob * width_tensor).sum((2, 3))
+        return torch.cat((width_out.unsqueeze(-1), height_out.unsqueeze(-1)), dim=-1) # returns (x, y), which corresponds to (W, H)
 
 class MaxPlusMinPooling(nn.Module):
     """
