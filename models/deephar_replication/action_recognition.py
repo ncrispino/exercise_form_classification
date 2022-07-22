@@ -106,15 +106,13 @@ class ActionCombined(nn.Module):
     def forward(self, x):
         up_shape = list(np.array(x.shape[-2:]) // 2) # dimensions to upsample to so I can add outputs in the action blocks
         # all_actions = torch.zeros((self.K, self.N_a)) # holds a scalar for each action from each prediction block
-        # keep track of output of previous block and add to input of next block
-        print("action start input: " + str(x.shape))
+        # keep track of output of previous block and add to input of next block        
         out = self.action_start(x)
         prev_out = 0   
         for k, block in enumerate(self.action_blocks):      
             actions, new_out = block(out + prev_out, up_shape=up_shape)
             prev_out = out
-            out = new_out                             
-        print("actions: " + str(actions.shape)) 
+            out = new_out                                     
         actions = actions.view(self.B, -1)   
         return actions, out   
 
@@ -126,10 +124,8 @@ def appearance_extract(entry_input, prob_maps, B):
     prob_maps -- B * T x N_J x H x W probability maps obtained at the end of pose estimation part (softmax applied to heatmaps)
     B -- number of batches
     """
-    out = kronecker_prod(entry_input, prob_maps) # B * T x N_f x N_J x H x W    
-    print(out.shape)
-    out = torch.sum(out, dim=(-2, -1)) # B * T x N_f x N_J    
-    print(out.shape)
+    out = kronecker_prod(entry_input, prob_maps) # B * T x N_f x N_J x H x W        
+    out = torch.sum(out, dim=(-2, -1)) # B * T x N_f x N_J        
     out = out.view(B, out.shape[1], -1, out.shape[2])
     return out
 
@@ -148,13 +144,13 @@ class ActionRecognition(nn.Module):
         self.pose_rec = ActionCombined(True, N_a, K, B)
         self.action_rec = ActionCombined(False, N_a, K, B)
         self.fc = nn.Linear(2 * N_a, N_a)
-        self.softmax = nn.Softmax(dim=1)
+        self.log_softmax = nn.LogSoftmax(dim=1)
     
     def forward(self, pose_input, entry_input, prob_maps):
         appearance_input = appearance_extract(entry_input, prob_maps, self.B)
         pose_actions, pose_out = self.pose_rec(pose_input)
         appearance_actions, appearance_out = self.action_rec(appearance_input)        
         fc_input = torch.cat((pose_actions, appearance_actions), dim=1) # isolate actions in last block B x 2 * N_a        
-        out = self.softmax(self.fc(fc_input)) # output of fc is B x N_a then softmax N_a to get probabilities
+        out = self.log_softmax(self.fc(fc_input)) # output of fc is B x N_a then softmax N_a to get probabilities
         return out
         

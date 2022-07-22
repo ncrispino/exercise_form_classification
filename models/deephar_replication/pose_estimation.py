@@ -71,11 +71,9 @@ class PoseUpBlock(nn.Module):
         heatmaps = out2.view(-1, self.N_J, self.N_d, out2.shape[2], out2.shape[3])
         # average the N_d heatmaps for each N_J to get B x N_J x H x W
         heatmaps_xy = torch.mean(heatmaps, dim=2) # avg on z
-        joints_xy = self.softargmax_xy(heatmaps_xy)
-        print("softmax heatmaps xy: " + str(joints_xy.shape))
+        joints_xy = self.softargmax_xy(heatmaps_xy)        
         heatmaps_z = torch.mean(heatmaps, dim=(3, 4)) # avg on x & y        
-        joints_z = self.softargmax_z(heatmaps_z)
-        print("softmax heatmaps z: " + str(joints_z.shape))
+        joints_z = self.softargmax_z(heatmaps_z)        
         joints = torch.cat((joints_xy, joints_z), dim=2)
         # after heatmaps
         out2 = self.conv2(out2)
@@ -110,11 +108,8 @@ class PoseEstimation(nn.Module):
         self.N_d = N_d
         self.prediction_blocks = [PoseBlock(N_J, N_d) for i in range(K)]        
     
-    def forward(self, x):
-        print("x bach: " + str(x.shape))
-        # all_joints = torch.zeros((x.shape[0], self.K, self.N_J, 3)) # holds (x, y, z) for each joint from each prediction block
+    def forward(self, x):        
         out = x
         for k, block in enumerate(self.prediction_blocks):
-            heatmaps, joints, out = block(out)
-            # all_joints[:, k] = joints
+            heatmaps, joints, out = block(out)            
         return heatmaps, joints.view(self.B, joints.shape[2], -1, joints.shape[1]), out

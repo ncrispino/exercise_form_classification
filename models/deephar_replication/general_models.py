@@ -101,8 +101,7 @@ class SoftArgMax(nn.Module):
         # multiply prob maps times weight tensors and sum over H x W        
         height_out = (x_prob * height_tensor).sum((2, 3))
         width_out = (x_prob * width_tensor).sum((2, 3))
-        out = torch.cat((width_out.unsqueeze(-1), height_out.unsqueeze(-1)), dim=-1) # returns (x, y), which corresponds to (W, H)
-        print("this x shape: " + str(len(x.shape)))
+        out = torch.cat((width_out.unsqueeze(-1), height_out.unsqueeze(-1)), dim=-1) # returns (x, y), which corresponds to (W, H)        
         if dim1:            
             return out[:, :, 1].unsqueeze(-1) # return only height_out, as width was only dim 1
         return out
