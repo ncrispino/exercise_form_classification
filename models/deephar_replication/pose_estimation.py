@@ -61,7 +61,7 @@ class PoseUpBlock(nn.Module):
     
     def forward(self, x):
         """
-        Returns xy heatmaps, 
+        Returns probability maps obtained from xy heatmaps, 
         location of all joints (N_J x 3) from volumetric heat maps with soft-argmax applied, 
         and output 576 x 32 x 32 to be fed into the next block.    
         """
@@ -71,13 +71,14 @@ class PoseUpBlock(nn.Module):
         heatmaps = out2.view(-1, self.N_J, self.N_d, out2.shape[2], out2.shape[3])
         # average the N_d heatmaps for each N_J to get B x N_J x H x W
         heatmaps_xy = torch.mean(heatmaps, dim=2) # avg on z
-        joints_xy = self.softargmax_xy(heatmaps_xy)        
-        heatmaps_z = torch.mean(heatmaps, dim=(3, 4)) # avg on x & y        
+        prob_xy = spacial_softmax(heatmaps_xy)    
+        joints_xy = self.softargmax_xy(prob_xy, apply_softmax=False)        
+        heatmaps_z = torch.mean(heatmaps, dim=(3, 4)) # avg on x & y    
         joints_z = self.softargmax_z(heatmaps_z)        
         joints = torch.cat((joints_xy, joints_z), dim=2)
         # after heatmaps
         out2 = self.conv2(out2)
-        return heatmaps_xy, joints, x + self.relu(self.batch_norm(out1 + out2))
+        return prob_xy, joints, x + self.relu(self.batch_norm(out1 + out2))
 
 class PoseBlock(nn.Module):
     """

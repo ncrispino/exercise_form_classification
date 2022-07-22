@@ -74,12 +74,20 @@ class SRBlock(nn.Module):
             out = self.relu(out)
         return out
 
+def spacial_softmax(x, H, W):
+    # Apply softmax to each H x W (spacial softmax)
+    softmax = nn.Softmax(2)
+    x_collapsed = x.view(x.shape[0], x.shape[1], -1) # collapse height and width to apply softmax
+    x_prob = softmax(x_collapsed).view(-1, x.shape[1], H, W)  
+    return x_prob    
+
 class SoftArgMax(nn.Module):
     """    
     Soft-argmax operation. Returns B x C x 2 if 2D, B x C x 1 if 1D.
     Should provide equivalent output to the softargmax model in the paper.
+    apply_softmax -- whether to apply spacial softmax before calculating the rest
     """
-    def forward(self, x):
+    def forward(self, x, apply_softmax=True):
         super().__init__()
         dim1 = False
         if len(x.shape) == 3: # adds dimension to end if 1D
@@ -88,10 +96,10 @@ class SoftArgMax(nn.Module):
         H = x.shape[2]
         W = x.shape[3]
         # Apply softmax to each H x W (spacial softmax)
-        softmax = nn.Softmax(2)
-        x_collapsed = x.view(x.shape[0], x.shape[1], -1) # collapse height and width to apply softmax
-        x_prob = softmax(x_collapsed).view(-1, x.shape[1], H, W)        
-        
+        if apply_softmax:
+            x_prob = spacial_softmax(x, H, W)
+        else:
+            x_prob = x
         # Create tensor with weights to multiply
         height_values = torch.arange(0, H).unsqueeze(1)
         width_values = torch.arange(0, W).unsqueeze(0)
