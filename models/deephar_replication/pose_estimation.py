@@ -91,13 +91,13 @@ class PoseBlock(nn.Module):
     
     def forward(self, x):
         out = self.pose_down(x)
-        heatmaps, joints, out = self.pose_up(out)
-        return heatmaps, joints, out
+        prob_maps, joints, out = self.pose_up(out)
+        return prob_maps, joints, out
 
 class PoseEstimation(nn.Module):
     """
     Combines K pose blocks together.
-    Returns the xy heatmaps obtained from the Kth block,
+    Returns the xy probability maps obtained from the Kth block,
     the joint estimation vector of dimension B * T x N_J x 3 (obtained from the heatmaps) reshaped to B x 3 x T x N_J from the Kth block,
     and a tensor of dimension B * T x 576 x 32 x 32.
     """
@@ -112,5 +112,5 @@ class PoseEstimation(nn.Module):
     def forward(self, x):        
         out = x
         for block in self.prediction_blocks:
-            heatmaps, joints, out = block(out)            
-        return heatmaps, joints.view(self.B, joints.shape[2], -1, joints.shape[1]), out
+            prob_maps, joints, out = block(out)            
+        return prob_maps, joints.view(self.B, joints.shape[2], -1, joints.shape[1]), out

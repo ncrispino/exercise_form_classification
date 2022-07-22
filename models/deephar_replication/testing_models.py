@@ -8,19 +8,19 @@ from action_recognition import *
 from loss import *
 
 # entire model
-# x = torch.randint(0, 1, size=(2, 10, 3, 256, 256), dtype=torch.float) # B x T x C x H x W
-# B = x.shape[0]
-# mstem = EntryFlow()
-# entry_input = mstem(x)
+x = torch.randint(0, 1, size=(20, 10, 3, 256, 256), dtype=torch.float) # B x T x C x H x W
+B = x.shape[0]
+mstem = EntryFlow()
+entry_input = mstem(x)
 # print("entry: " + str(entry_input.shape))
-# pose = PoseEstimation(17, B=B)
-# prob_maps, joints, pose_out = pose(entry_input)
+pose = PoseEstimation(17, B=B)
+prob_maps, joints, pose_out = pose(entry_input)
 # print("prob maps: " + str(prob_maps.shape))
 # print("joints: " + str(joints.shape))
 # print("pose_out: " + str(pose_out.shape))
-# action_recognition = ActionRecognition(2, B=B)
-# out = action_recognition(joints, entry_input, prob_maps)
-# print(out.shape, out)
+action_recognition = ActionRecognition(2, B=B)
+out = action_recognition(joints, entry_input, prob_maps)
+print(out)
 
 # global pooling
 # global_mpm = GlobalMaxPlusMinPooling()
@@ -48,12 +48,12 @@ from loss import *
 # print(out_y)
 
 # loss
-x = torch.randint(0, 10, size=(2, 3, 10, 17), dtype=torch.float) # B x C x T x N_J
-y = torch.randint(0, 10, size=(2, 3, 10, 17), dtype=torch.float) # B x C x T x N_J
+# x = torch.randint(0, 10, size=(2, 3, 10, 17), dtype=torch.float) # B x C x T x N_J
+# y = torch.randint(0, 10, size=(2, 3, 10, 17), dtype=torch.float) # B x C x T x N_J
 # # 1-norm
 # print((torch.norm(x - y, dim=(1), p=1) == abs(x - y).sum(dim=(1))).sum())
 # # 2-norm
 # print((torch.norm(x - y, dim=(1), p=2) == ((x - y)**2).sum(dim=(1)).sqrt()).sum())
 # loss
-enl = ElasticNetLoss()
-print(enl(x, y))
+# enl = ElasticNetLoss()
+# print(enl(x, y))

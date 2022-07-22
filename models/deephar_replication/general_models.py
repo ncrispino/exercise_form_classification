@@ -74,8 +74,12 @@ class SRBlock(nn.Module):
             out = self.relu(out)
         return out
 
-def spacial_softmax(x, H, W):
-    # Apply softmax to each H x W (spacial softmax)
+def spacial_softmax(x):
+    """
+    Apply softmax to each H x W (spacial softmax)
+    """
+    H = x.shape[2]
+    W = x.shape[3]
     softmax = nn.Softmax(2)
     x_collapsed = x.view(x.shape[0], x.shape[1], -1) # collapse height and width to apply softmax
     x_prob = softmax(x_collapsed).view(-1, x.shape[1], H, W)  
@@ -95,9 +99,9 @@ class SoftArgMax(nn.Module):
             x = x.unsqueeze(-1)            
         H = x.shape[2]
         W = x.shape[3]
-        # Apply softmax to each H x W (spacial softmax)
+        # softmax
         if apply_softmax:
-            x_prob = spacial_softmax(x, H, W)
+            x_prob = spacial_softmax(x)
         else:
             x_prob = x
         # Create tensor with weights to multiply
