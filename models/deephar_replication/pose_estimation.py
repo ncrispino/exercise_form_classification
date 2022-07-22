@@ -9,7 +9,7 @@ from general_models import *
 class PoseDownBlock(nn.Module):
     """
     Bottom part of pose block.
-    Input assumed to be 576x32x32.
+    Input assumed to be 576 x 32 x 32.
     """
     def __init__(self):
         super().__init__()
@@ -43,7 +43,7 @@ class PoseDownBlock(nn.Module):
 class PoseUpBlock(nn.Module):
     """
     Top part of pose block.
-    Input assumed to be 576x32x32.
+    Input assumed to be 576 x 32 x 32.      
     N_d -- number of depth heat maps per joint
     N_J -- number of body joints
     """
@@ -110,6 +110,6 @@ class PoseEstimation(nn.Module):
     
     def forward(self, x):        
         out = x
-        for k, block in enumerate(self.prediction_blocks):
+        for block in self.prediction_blocks:
             heatmaps, joints, out = block(out)            
         return heatmaps, joints.view(self.B, joints.shape[2], -1, joints.shape[1]), out

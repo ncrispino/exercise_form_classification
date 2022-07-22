@@ -7,7 +7,8 @@ import numpy as np
 
 class ActionStart(nn.Module):
     """
-    Takes in B x N_f x T x N_J, where N_f is the number of dimensions (the number of coordinates for each point, T is the number of frames (temporal), and N_J is the number of joints
+    Takes in B x N_f x T x N_J, where N_f is the number of dimensions (the number of coordinates for each point, 
+    T is the number of frames (temporal), and N_J is the number of joints
     pose_rec -- true if doing pose recognition (each conv does half the features that appearance recognition does)
     """
     def __init__(self, pose_rec):
@@ -39,11 +40,11 @@ class ActionStart(nn.Module):
         out_middle = self.conv_middle1(x)
         out_right = self.conv_right1(x)        
         out = torch.cat((out_left, out_middle, out_right), dim=1)
-        out_left1 = self.conv_left2(out)
-        out_right1 = self.conv_right2(out)
-        out1 = torch.cat((out_left1, out_right1), dim=1)
-        out1 = self.maxplusmin(out1)
-        return out1
+        out_left2 = self.conv_left2(out)
+        out_right2 = self.conv_right2(out)
+        out2 = torch.cat((out_left2, out_right2), dim=1)
+        out2 = self.maxplusmin(out2)
+        return out2
 
 class ActionBlock(nn.Module):
     """
@@ -90,6 +91,7 @@ class ActionCombined(nn.Module):
     """
     Pose/appearance recognition using K action recognition blocks -- a 'stacked architecture with intermediate supervision'
     See Figure 5 for more.
+    Returns B x N_a of actions and B x 224 x T/2 x N_J/2 from end block.
     Input of 3 x T x N_J if doing pose recognition.
     Input of N_f x T x N_J if doing appearance recognition.
     pose_rec -- True if doing pose recognition.
@@ -105,11 +107,10 @@ class ActionCombined(nn.Module):
     
     def forward(self, x):
         up_shape = list(np.array(x.shape[-2:]) // 2) # dimensions to upsample to so I can add outputs in the action blocks
-        # all_actions = torch.zeros((self.K, self.N_a)) # holds a scalar for each action from each prediction block
         # keep track of output of previous block and add to input of next block        
         out = self.action_start(x)
         prev_out = 0   
-        for k, block in enumerate(self.action_blocks):      
+        for block in self.action_blocks:      
             actions, new_out = block(out + prev_out, up_shape=up_shape)
             prev_out = out
             out = new_out                                     
@@ -142,14 +143,14 @@ class ActionRecognition(nn.Module):
         self.B = B
         self.K = K        
         self.pose_rec = ActionCombined(True, N_a, K, B)
-        self.action_rec = ActionCombined(False, N_a, K, B)
+        self.appear_rec = ActionCombined(False, N_a, K, B)
         self.fc = nn.Linear(2 * N_a, N_a)
         self.log_softmax = nn.LogSoftmax(dim=1)
     
     def forward(self, pose_input, entry_input, prob_maps):
         appearance_input = appearance_extract(entry_input, prob_maps, self.B)
         pose_actions, pose_out = self.pose_rec(pose_input)
-        appearance_actions, appearance_out = self.action_rec(appearance_input)        
+        appearance_actions, appearance_out = self.appear_rec(appearance_input)        
         fc_input = torch.cat((pose_actions, appearance_actions), dim=1) # isolate actions in last block B x 2 * N_a        
         out = self.log_softmax(self.fc(fc_input)) # output of fc is B x N_a then softmax N_a to get probabilities
         return out

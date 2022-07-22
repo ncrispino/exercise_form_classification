@@ -117,7 +117,7 @@ class MaxPlusMinPooling(nn.Module):
         self.maxpool = nn.MaxPool2d(kernel_size, stride, padding=padding)
         self.minpool = nn.MaxPool2d(kernel_size, stride, padding=padding)
 
-    def __call__(self, x):
+    def forward(self, x):
         return self.maxpool(x) - self.minpool(-x)
 
 class GlobalMaxPlusMinPooling(nn.Module):
