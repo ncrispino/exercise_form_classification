@@ -173,16 +173,20 @@ class GlobalMaxPlusMinPooling(nn.Module):
     """ Takes the max value for each channel.
     
     This is 2D pooling. For more, see https://shorturl.at/gnstX.
+    
     """
 
     def forward(self, x):
         """
+
         Args:                
             B x C x H x W tensor.
 
         Returns:
-            B x C tensor.    
+            B x C tensor.  
+
         """
+
         max_pool = torch.amax(x, dim=(2, 3)) 
         min_pool = torch.amax(-x, dim=(2, 3))    
         return max_pool - min_pool

@@ -8,25 +8,25 @@ from action_recognition import *
 from loss import *
 
 # entire model
-x = torch.randint(0, 1, size=(20, 10, 3, 256, 256), dtype=torch.float) # B x T x C x H x W
-B = x.shape[0]
-mstem = EntryFlow()
-entry_input = mstem(x)
-# print("entry: " + str(entry_input.shape))
-pose = PoseEstimation(17, B=B)
-prob_maps, joints, pose_out = pose(entry_input)
-# print("prob maps: " + str(prob_maps.shape))
-# print("joints: " + str(joints.shape))
-# print("pose_out: " + str(pose_out.shape))
-action_recognition = ActionRecognition(2, B=B)
-out = action_recognition(joints, entry_input, prob_maps)
-print(out)
+# x = torch.randint(0, 1, size=(2, 10, 3, 256, 256), dtype=torch.float) # B x T x C x H x W
+# B = x.shape[0]
+# mstem = EntryFlow()
+# entry_input = mstem(x)
+# # print("entry: " + str(entry_input.shape))
+# pose = PoseEstimation(17, B=B)
+# prob_maps, joints, pose_out = pose(entry_input)
+# # print("prob maps: " + str(prob_maps.shape))
+# # print("joints: " + str(joints.shape))
+# # print("pose_out: " + str(pose_out.shape))
+# action_recognition = ActionRecognition(2, B=B)
+# out = action_recognition(joints, entry_input, prob_maps)
+# print(out)
 
 # global pooling
-# global_mpm = GlobalMaxPlusMinPooling()
-# pool_test = torch.randint(0, 1, size=(1, 10, 100, 100), dtype=torch.float)
-# pool_out = global_mpm(pool_test)
-# print(pool_out.shape)
+global_mpm = GlobalMaxPlusMinPooling()
+pool_test = torch.randint(0, 1, size=(20, 10, 100, 100), dtype=torch.float)
+pool_out = global_mpm(pool_test)
+print(pool_out.shape)
 
 # testing only action recognition
 # for joints
