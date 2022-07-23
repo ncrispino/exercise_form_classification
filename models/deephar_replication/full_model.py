@@ -1,4 +1,5 @@
-"""Puts entire model together to run."""
+"""Puts entire model together to run.
+"""
 
 from torch import nn
 from multitask_stem import EntryFlow

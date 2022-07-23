@@ -1,6 +1,6 @@
+"""Make sure input and output are correct shapes.
 """
-Make sure input and output are correct shapes.
-"""
+
 import torch
 from full_model import Model
 

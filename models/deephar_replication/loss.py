@@ -1,4 +1,5 @@
-"""Holds loss functions for modeling."""
+"""Holds loss functions for modeling.
+"""
 
 import torch
 

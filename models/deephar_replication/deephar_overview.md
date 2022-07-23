@@ -12,6 +12,7 @@ There are 3 parts to this model:
     4. appearance recognition model.
 
 To run, I need to set the number of joints, N_J. In the paper, they use N_J = number of joints in dataset with most joints.
+Also, I need to set the number of actions, which in my case will be 2 (straight handstand or not).
 
 ### To-do
 - can I train with a different number of timesteps, i.e., with a video of 5 timesteps and a video of 10 timesteps?

@@ -1,4 +1,5 @@
-"""Holds models shared by different parts of the network."""
+"""Holds models shared by different parts of the network.
+"""
 
 import torch
 from torch import nn
@@ -173,7 +174,7 @@ class GlobalMaxPlusMinPooling(nn.Module):
     """ Takes the max value for each channel.
     
     This is 2D pooling. For more, see https://shorturl.at/gnstX.
-    
+
     """
 
     def forward(self, x):
