@@ -17,11 +17,9 @@ To run, I need to set the number of joints, N_J. In the paper, they use N_J = nu
 - can I train with a different number of timesteps, i.e., with a video of 5 timesteps and a video of 10 timesteps?
 - investigate relus and batch norm (see below)
 - check params of model and compare with the paper's (visualize)
-- remove print statements
 - use biases?
 - torch functional vs nn? Can I create new instances of cnns in forward functions?
 - should I write custom backwards functions if images only (x, y)?
-- redundant imports?
 
 ### Model Changes
 - I will be applying the batch norm before the relu, though in [some data models performed better the other way around](https://www.reddit.com/r/MachineLearning/comments/67gonq/d_batch_normalization_before_or_after_relu/).

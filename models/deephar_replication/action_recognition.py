@@ -89,10 +89,12 @@ class ActionBlock(nn.Module):
         self.conv1 = ConvBlock(dim, dim // 2, 1, padding='same')
         self.conv2 = ConvBlock(dim // 2, dim, 3, padding='same')
         self.conv3 = ConvBlock(dim, dim, 3, padding='same')
-        self.maxplusmin = MaxPlusMinPooling(2) # padding should be equivalent to 'same' in tf -- done in forward as it's based on output
+        # Padding should be equivalent to 'same' in tf -- done in forward as it's based on output.
+        self.maxplusmin = MaxPlusMinPooling(2)
         self.conv4 = ConvBlock(dim, N_a, 3, padding='same')        
         self.conv5 = ConvBlock(N_a, dim, 3, padding='same')
-        self.global_maxplusmin = GlobalMaxPlusMinPooling() # input: N_a x H x W. output: N_a
+        # Input: N_a x H x W. output: N_a.
+        self.global_maxplusmin = GlobalMaxPlusMinPooling()
         self.softmax = nn.Softmax(0)
     
     def forward(self, x, up_shape):    
