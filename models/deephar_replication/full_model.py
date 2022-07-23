@@ -15,6 +15,7 @@ class Model(nn.Module):
     """
     
     def __init__(self, N_J=17, N_a=2):
+        super().__init__()
         self.N_J = N_J
         self.N_a = N_a
 

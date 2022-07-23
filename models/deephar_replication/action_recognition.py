@@ -227,7 +227,11 @@ class ActionRecognition(nn.Module):
             entry_input: B x 576 x H x W output from global entry flow, which is
                 the multitask stem based on Inception-V4.        
             prob_maps: B x N_J x H x W probability maps obtained at the 
-                end of pose estimation part (softmax applied to the xy heatmaps).            
+                end of pose estimation part (softmax applied to the xy heatmaps).   
+
+        Returns:
+            B x N_a tensor with log probabilities for each action. 
+                Use exp to retrieve probabilities.
     
         """
 
@@ -236,7 +240,7 @@ class ActionRecognition(nn.Module):
         appearance_actions, appearance_out = self.appear_rec(appearance_input)
         # Isolate actions in last block B x 2 * N_a.        
         fc_input = torch.cat((pose_actions, appearance_actions), dim=1) 
-        # Output of fc is B x N_a then softmax N_a to get probabilities.
+        # Output of fc is B x N_a then log softmax N_a to get probabilities.
         out = self.log_softmax(self.fc(fc_input))
         return out
         

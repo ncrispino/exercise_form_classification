@@ -2,10 +2,21 @@
 Make sure input and output are correct shapes.
 """
 import torch
-from multitask_stem import *
-from pose_estimation import *
-from action_recognition import *
-from loss import *
+from full_model import Model
+
+# Testing entire model
+x = torch.randint(0, 1, size=(2, 10, 3, 256, 256), dtype=torch.float) # B x T x C x H x W
+model = Model(N_J=17, N_a=2)
+out = model(x)
+print(torch.exp(out))
+
+
+# Old testing
+# import torch
+# from multitask_stem import *
+# from pose_estimation import *
+# from action_recognition import *
+# from loss import *
 
 # entire model
 # x = torch.randint(0, 1, size=(2, 10, 3, 256, 256), dtype=torch.float) # B x T x C x H x W
@@ -23,10 +34,10 @@ from loss import *
 # print(out)
 
 # global pooling
-global_mpm = GlobalMaxPlusMinPooling()
-pool_test = torch.randint(0, 1, size=(20, 10, 100, 100), dtype=torch.float)
-pool_out = global_mpm(pool_test)
-print(pool_out.shape)
+# global_mpm = GlobalMaxPlusMinPooling()
+# pool_test = torch.randint(0, 1, size=(20, 10, 100, 100), dtype=torch.float)
+# pool_out = global_mpm(pool_test)
+# print(pool_out.shape)
 
 # testing only action recognition
 # for joints
