@@ -1,8 +1,6 @@
 import numpy as np
 from scipy.stats import multivariate_normal
 
-from keras import backend as K
-
 def linspace_2d(nb_rols, nb_cols, dim=0):
 
     def _lin_sp_aux(size, nb_repeat, start, end):
@@ -28,7 +26,7 @@ def normalpdf2d(numbins, xmean, ymean, var):
     y = y.reshape((numbins, 1)).repeat(numbins, axis=1)
     g = x * y
 
-    if g.sum() > K.epsilon():
+    if g.sum() > 1e-7: #previously was K.epsilon(), which seems to default at 1e-7
         return g / g.sum()
 
     return np.zeros(g.shape)
