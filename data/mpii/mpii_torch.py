@@ -23,6 +23,21 @@ from data_config import mpii_dataconf
 from torch.utils.data import Dataset
 
 def load_mpii_mat_annotation(filename):
+    """Takes mpii raw Matlab data and makes it easily accessible using Pandas.
+
+    Args:
+        filename: Path to the MPII raw Matlab data.
+    
+    Returns:
+        rectidxs: A list of lists of indices of the indexes in the Pandas df 
+        for testing [0], training [1], and validation data [2]. 
+
+        annot: A Pandas df containing the annotations for the MPII dataset. 
+        It has 4 columns, two of which, 'image' and 'annorect', we care about.
+        'image' is the path to the image, and 'annorect' is a list of 
+        attributes contained in the annotations.
+
+    """
     mat = sio.loadmat(filename) # Read in as np record array
     mat = mat['RELEASE']        
 
@@ -33,33 +48,49 @@ def load_mpii_mat_annotation(filename):
     
     # ~25k total imgs; each holds 4 arrays: image, annorect, frame_sec, vididx.
     annolist = mat['annolist'][0][0][0]
-    annot_tr = annolist[train_idxs]
-    annot_val = annolist[val_idxs] 
+    # annot_tr = annolist[train_idxs]
+    # annot_val = annolist[val_idxs] 
 
     # Change to Pandas for ease of use.
-    annot_tr = pd.DataFrame(annot_tr)  
-    annot_val = pd.DataFrame(annot_val)  
+    annot = pd.DataFrame(annolist)
+    print(annot.head())
+    print(annot.loc[4, 'annorect'][0][0])
+    # print(annot['annorect'][0].dtype)
+    # print(annot['annorect'][0][0][0].dtype)
+    # annot_tr = pd.DataFrame(annot_tr)  
+    # annot_val = pd.DataFrame(annot_val)  
 
     # print(annot_tr_df['image'])
-    print(annot_tr.head())    
-    annot_tr['image'] = annot_tr['image'].apply(lambda x: x[0][0][0][0])
-    annot_val['image'] = annot_val['image'].apply(lambda x: x[0][0][0][0])        
+    # print(annot_tr.head())    
+    # annot_tr['image'] = annot_tr['image'].apply(lambda x: x[0][0][0][0])
+    # annot_val['image'] = annot_val['image'].apply(lambda x: x[0][0][0][0])  
+    annot['image'] = annot['image'].apply(lambda x: x[0][0][0][0])
+    def isolate_annorect(x):
+        try:
+            return x[0][0]
+        except:
+            return np.nan    
+    annot['annorect'] = annot['annorect'].apply(isolate_annorect)  
+    print(annot.isna().sum())
 
     # Respect the order of TEST (0), TRAIN (1), and VALID (2)
     rectidxs = [None, train_idxs, val_idxs]
-    images = [None, annot_tr['image'], annot_val['image']]
-    print(annot_tr['annorect'][0][0])
-    quit()
+    print(annot.loc[4, 'annorect'][0])
+    print([annot.loc[4, 'annorect'][k][0][0] for k in range(4)])
+    # images = [None, annot_tr['image'], annot_val['image']]
+    # print(annot_tr['annorect'][0][0].dtype)
+    # quit()
     # annorect = [None, annot_tr[:, 2], annot_val[:, 2]]
     # rectidxs = [None, train_idxs, val_idxs]
     # images = [None, annot_tr[:, 1], annot_val[:, 1]]
     # annorect = [None, annot_tr[:, 2], annot_val[:, 2]]
 
-    return rectidxs, images, annorect
+    return rectidxs, annot
 
 
-def serialize_annorect(rectidxs, annorect):
-    assert len(rectidxs) == len(annorect)
+def serialize_annorect(rectidxs, annot):
+    # assert len(rectidxs) == len(annorect)
+    annorect = annot['annorect']
 
     sample_list = []
     for i in range(len(rectidxs)):
@@ -67,14 +98,18 @@ def serialize_annorect(rectidxs, annorect):
         for j in rec:
         # for j in range(rec.size):
             # idx = rec[j,0]-1 # Convert idx from Matlab
-            ann = annorect[i][idx,0]
+            ann = annorect.loc[j, :]
             annot = {}
-            annot['head'] = ann['head'][0,0][0]
-            annot['objpos'] = ann['objpos'][0,0][0]
-            annot['scale'] = ann['scale'][0,0][0,0]
-            annot['pose'] = ann['pose'][0,0]
-            annot['imgidx'] = i
-            sample_list.append(annot)
+            try:
+                annot['head'] = [annot.loc[j, 'annorect'][k][0][0] for k in range(4)] #ann['head'][0,0][0] # Coordinates of head rectangle (there are 4).
+                annot['objpos'] = ann['objpos'][0,0][0]
+                annot['scale'] = ann['scale'][0,0][0,0]
+                annot['pose'] = ann['annopoints'][0,0]
+                annot['imgidx'] = j
+                sample_list.append(annot)
+            except:
+                print('Error:', j)
+                continue
 
     return sample_list
 
@@ -105,7 +140,8 @@ class Mpii(Dataset):
     
     def load_annotations(self, filename):
         try:
-            rectidxs, images, annorect = load_mpii_mat_annotation(filename)
+            rectidxs, annot = load_mpii_mat_annotation(filename)
+            images = annot['image']
 
             self.samples = {}
             self.samples[TEST_MODE] = [] # No samples for test
@@ -189,7 +225,20 @@ class Mpii(Dataset):
         return output
 
 if __name__=='__main__':    
-    annotation_path = 'mpii_human_pose_v1_u12_2/mpii_human_pose_v1_u12_2/mpii_human_pose_v1_u12_1.mat'
-    mpii = Mpii('mpii_human_pose_v1.tar.gz', mpii_dataconf, annotation_path,
-    mode=TRAIN_MODE)
-    print(type(mpii))
+    # import h5py
+    # f = h5py.File('annot.h5', 'r')
+    # print(f.keys())
+
+    # annotation_path = 'mpii_human_pose_v1_u12_2/mpii_human_pose_v1_u12_2/mpii_human_pose_v1_u12_1.mat'
+    # mpii = Mpii('mpii_human_pose_v1.tar.gz', mpii_dataconf, annotation_path,
+    # mode=TRAIN_MODE)
+    # print(type(mpii))
+    annot = pd.read_json('mpii_annotations.json')
+    print(annot.info())
+    print(annot.head())
+    print(annot['objpos'])
+    print(annot['joint_self'])
+    print(annot['scale_provided'])
+    print(annot['objpos_other'])
+    print(annot['joint_others'])
+    print(annot['scale_provided_other'])
