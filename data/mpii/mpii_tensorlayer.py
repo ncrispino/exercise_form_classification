@@ -96,7 +96,7 @@ def load_mpii_pose_dataset(path='data', is_16_pos_only=False):
         # fp = open(joint_data_fn, 'w')
         mat = sio.loadmat(os.path.join(path, extracted_filename, "mpii_human_pose_v1_u12_1.mat"))        
 
-        for _, (anno, train_flag) in enumerate(  # all images
+        for num, (anno, train_flag) in enumerate(  # all images
                 zip(mat['RELEASE']['annolist'][0, 0][0], mat['RELEASE']['img_train'][0, 0][0])):            
 
             img_fn = anno['image']['name'][0, 0][0]
@@ -118,26 +118,35 @@ def load_mpii_pose_dataset(path='data', is_16_pos_only=False):
                     [x2[0, 0] for x2 in anno['annorect']['x2'][0]], [y2[0, 0] for y2 in anno['annorect']['y2'][0]]
                 )
             else:
-                head_rect = []  # TODO
-            
-            print("head rect: " + str(head_rect))
+                head_rect = []  # TODO                        
             
             # scale
             if 'scale' in str(anno['annorect'].dtype):
                 scales = anno['annorect']['scale'][0]                
             
             else:
-                scales = [] # TODO
-            
-            print(scales)
+                scales = [] # TODO                        
 
-            # objpos            
-            if 'objpos' in str(anno['annorect'].dtype):
-                objpos = [float(anno['annorect']['objpos'][0, 0]['x'][0, 0][0, 0]), float(anno['annorect']['objpos'][0, 0]['y'][0, 0][0, 0])]
-            else:
-                objpos = []  # TODO
-            
-            print(objpos)
+            # objpos    
+            try:                        
+                if 'objpos' in str(anno['annorect'].dtype):
+                    # print(anno['annorect']['objpos'])
+                    # print('indvidual objpos')
+                    # print([float(x['x'][0, 0][0, 0]) for x in anno['annorect']['objpos'][0]])
+                    # print([float(x['x'][0, 0][0, 0]) if 'x' in str(x.dtype) else [] for x in anno['annorect']['objpos'][0]])
+                    objpos = zip(
+                        [float(x['x'][0, 0][0, 0]) if 'x' in str(x.dtype) else [] for x in anno['annorect']['objpos'][0]], 
+                        [float(y['y'][0, 0][0, 0]) if 'y' in str(y.dtype) else [] for y in anno['annorect']['objpos'][0]]
+                    )
+                else:
+                    objpos = []  # TODO       
+
+            except: # I think the problem is if there is no x or y? Check for empty arrays in both scales and objpos?
+                print('EXCEPT:')
+                print(img_fn)
+                print(num)
+                # print(scales)                
+                print(anno['annorect']['objpos'])                
 
             if 'annopoints' in str(anno['annorect'].dtype):
                 annopoints = anno['annorect']['annopoints'][0]
@@ -173,14 +182,7 @@ def load_mpii_pose_dataset(path='data', is_16_pos_only=False):
                             vis = [v[0] if v.size > 0 else [0] for v in annopoint['is_visible'][0]]
                             vis = dict([(k, int(v[0])) if len(v) > 0 else v for k, v in zip(j_id, vis)])
                         else:
-                            vis = None
-                        
-                        # scale
-                        # print(scale)
-
-                        # objpos
-                        # objpos = [float(objposs[0, 0]), float(objposs[1, 0])]
-                        print(objpos)
+                            vis = None                        
 
                         # if len(joint_pos) == 16:
                         if ((is_16_pos_only ==True) and (len(joint_pos) == 16)) or (is_16_pos_only == False):
