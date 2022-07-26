@@ -6,11 +6,13 @@ Had to change the loading process as the Matlab file wasn't exactly the same.
 """
 
 import os
+from random import seed
 
 import numpy as np
 import scipy.io as sio
 import pandas as pd
 from PIL import Image
+import tensorlayer as tl
 
 import sys
 sys.path.insert(0, '../../models')
@@ -120,57 +122,76 @@ def calc_head_size(head_annot):
     return 0.6 * np.linalg.norm(head[0:2] - head[2:4])
 
 class Mpii(Dataset):
-    """Holds images and annotations from MPII human pose benchmark.
+    """Holds images and annotations from MPII human pose benchmark for single person.
     
     See http://human-pose.mpi-inf.mpg.de/#download for more.
     Code copied from/based on MpiiSinglePerson class in mpii.py.
+    I am using tensorlayer, as they do all the preprocessing for me.
+    Link: https://tensorlayer.readthedocs.io/en/latest/_modules/tensorlayer/files/dataset_loaders/mpii_dataset.html.
+
+    This splits into training and testing sets. According to the paper I'm replicating, 
+    around 15k images are used for training, 3k for validation, and 7k for testing.
+    Currently, there are 18k images in the training set and 7k in the testing set.
+    So, I will manually split the training set, using 1/6th of the images for validation.
 
     """
     
     def __init__(self, dataset_path, dataconf, annotation_path, mode, 
                     poselayout=pa16j2d, remove_outer_joints=True, 
                     transform=None, target_transform = None):
-        self.mode = mode
-        self.dataset_path = dataset_path  
+        self.mode = mode  
         self.dataconf = dataconf    
         self.poselayout = poselayout
         self.remove_outer_joints = remove_outer_joints   
-        self.load_annotations(annotation_path)     
-        # self.load_annotations(os.path.join(annotation_path, 'annotations.mat'))
+        img_train_list, ann_train_list, img_test_list, ann_test_list = tl.files.load_mpii_pose_dataset(is_16_pos_only=True)    
+        shuffled_train_idxs = np.arange(len(img_train_list))
+        np.random.seed(42)
+        np.random.shuffle(shuffled_train_idxs)
+        val_idxs = shuffled_train_idxs[:int(len(img_train_list) / 6)]
+        train_idxs = shuffled_train_idxs[int(len(img_train_list) / 6):]
+        if mode == TEST_MODE:
+            self.img_list = img_test_list
+            self.ann_list = ann_test_list
+        elif mode == TRAIN_MODE:
+            self.img_list = img_train_list[train_idxs]
+            self.ann_list = ann_train_list[train_idxs]
+        elif mode == VAL_MODE:
+            self.img_list = img_train_list[val_idxs]
+            self.ann_list = ann_train_list[val_idxs] 
     
-    def load_annotations(self, filename):
-        try:
-            rectidxs, annot = load_mpii_mat_annotation(filename)
-            images = annot['image']
+    # def load_annotations(self, filename):
+    #     try:
+    #         # rectidxs, annot = load_mpii_mat_annotation(filename)
+    #         # images = annot['image']
 
-            self.samples = {}
-            self.samples[TEST_MODE] = [] # No samples for test
-            self.samples[TRAIN_MODE] = serialize_annorect(
-                    rectidxs[TRAIN_MODE], annorect[TRAIN_MODE])
-            self.samples[VALID_MODE] = serialize_annorect(
-                    rectidxs[VALID_MODE], annorect[VALID_MODE])
-            self.images = images
+    #         self.samples = {}
+    #         self.samples[TEST_MODE] = [] # No samples for test
+    #         self.samples[TRAIN_MODE] = serialize_annorect(
+    #                 rectidxs[TRAIN_MODE], annorect[TRAIN_MODE])
+    #         self.samples[VALID_MODE] = serialize_annorect(
+    #                 rectidxs[VALID_MODE], annorect[VALID_MODE])
+    #         self.images = annot['img_paths']
 
-        except:
-            warning('Error loading the MPII dataset!')
-            raise
+    #     except:
+    #         warning('Error loading the MPII dataset!')
+    #         raise
 
-    def load_image(self, key):
-        try:
-            annot = self.samples[self.mode][key]
-            image = self.images[self.mode][annot['imgidx']][0]
-            imgt = T(Image.open(os.path.join(
-                self.dataset_path, 'images', image)))
-        except:
-            warning('Error loading sample key/mode: %d/%d' % (key, self.mode))
-            raise
+    # def load_image(self, key):
+    #     try:
+    #         annot = self.samples[self.mode][key]
+    #         image = self.images[self.mode][annot['imgidx']][0]
+    #         imgt = T(Image.open(os.path.join(
+    #             self.dataset_path, 'images', image)))
+    #     except:
+    #         warning('Error loading sample key/mode: %d/%d' % (key, self.mode))
+    #         raise
 
-        return imgt
+    #     return imgt
 
     def __len__(self):
-        return len(self.samples[self.mode])
+        return len(self.img_list)
     
-    def __getitem__(self, key, fast_crop=False): # key is idx
+    def __getitem__(self, idx, fast_crop=False):
         output = {}
 
         if self.mode == TRAIN_MODE:
@@ -178,8 +199,8 @@ class Mpii(Dataset):
         else:
             dconf = self.dataconf.get_fixed_config()
 
-        imgt = self.load_image(key, self.mode)
-        annot = self.samples[self.mode][key]
+        imgt = self.load_image(idx, self.mode)
+        annot = self.ann_list[idx]
 
         scale = 1.25*annot['scale']
         objpos = np.array([annot['objpos'][0], annot['objpos'][1] + 12*scale])
@@ -206,7 +227,7 @@ class Mpii(Dataset):
         p = np.empty((self.poselayout.num_joints, self.poselayout.dim))
         p[:] = np.nan
 
-        head = annot['head']
+        head = annot['head_rect']
         p[self.poselayout.map_to_mpii, 0:2] = \
                 transform_2d_points(imgt.afmat, annot['pose'].T, transpose=True)
         if imgt.hflip:
@@ -219,26 +240,15 @@ class Mpii(Dataset):
             p[(v==0)[:,0],:] = -1e9
 
         output['pose'] = np.concatenate((p, v), axis=-1)
-        output['headsize'] = calc_head_size(annot['head'])
+        output['headsize'] = calc_head_size(annot['head_rect'])
         output['afmat'] = imgt.afmat.copy()
 
         return output
 
-if __name__=='__main__':    
-    # import h5py
-    # f = h5py.File('annot.h5', 'r')
-    # print(f.keys())
-
-    # annotation_path = 'mpii_human_pose_v1_u12_2/mpii_human_pose_v1_u12_2/mpii_human_pose_v1_u12_1.mat'
-    # mpii = Mpii('mpii_human_pose_v1.tar.gz', mpii_dataconf, annotation_path,
-    # mode=TRAIN_MODE)
-    # print(type(mpii))
-    annot = pd.read_json('mpii_annotations.json')
-    print(annot.info())
-    print(annot.head())
-    print(annot['objpos'])
-    print(annot['joint_self'])
-    print(annot['scale_provided'])
-    print(annot['objpos_other'])
-    print(annot['joint_others'])
-    print(annot['scale_provided_other'])
+if __name__=='__main__':           
+    img_train_list, ann_train_list, img_test_list, ann_test_list = tl.files.load_mpii_pose_dataset(is_16_pos_only=True)
+    print(len(img_train_list), len(img_test_list))
+    print(ann_train_list[0])
+    print(ann_train_list[0][0].keys())
+    # print(img_train_list[0], 'yo', ann_train_list[0])
+    # image = tl.vis.read_image(img_train_list[0])
