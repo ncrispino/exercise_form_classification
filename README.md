@@ -1,5 +1,8 @@
 # Exercise Form Classifier
-Given a picture of a handstand from the side, will classify the form as straight or not, then highlight the descrepancies with an image (and possibly text in the future). Note that at this time, I am mainly concerned with distinguishing straight vs. banana handstands. There are many other types of handstands, but due to the cost of creating datasets, I will ignore them for now. This model could easily be extended to one that classifies the form for these different types, as well as to one that classifies other exercises, like squats (whether parallel is reached) and deadlifts (whether there's lockout).
+Given a picture/video of an exercise, will classify it as done with conventionally good or bad form. This is different than some other projects as it aims not to only count repetitions, but to care about how the exercise is executed overall. Also, once given data, no heuristics like joint angles need to be used; the model should learn them itself. The neural network will be initially trained on large datasets for pose estimation and action recognition, then will be extended by training with self-labeled images for the supported exercises.
+
+## Supported Exercises
+Currently, I am focusing on distinguishing straight vs. banana handstands. There are many other types of handstands (and exercises in general), but due to the cost of creating datasets, I will ignore them for now.
 
 ## Output
 To-do.
@@ -11,20 +14,25 @@ To-do.
 To-do.
 
 ## Methodology
-As I care about how the joints are stacked, I want to use human pose estimation, then use the body positioning to classify the image. A 'perfectly straight' handstand, perhaps according to averaging from the training data, will be overlayed over the provided image to explain the differences. Right now, I'm thinking of using a pre-trained model for pose estimation, then using a model I replicated for action recognition. OR, I could do both in the same model, but it would require a lot of GPU power. Then, to show what they did wrong, perhaps I can transform the user inputted handstand into a straight-line handstand and place the images side-by-side, so that they could see where they're going wrong. To do this, I think I will use a General Adversarial Network (GAN), perhaps using the vector of results from the pose estimate as an input in addition to the image.
-
-To accomplish the initial task, I will implement "2D/3D Pose Estimation and Action Recognition using Multitask Deep Learning" from scratch in PyTorch. I will be using the paper and the authors' Tensorflow code to do so. Like them, I will train with the MPII Human Pose Dataset and use the same preprocessing file they do which I put in (```deephar_replication/data/mpii.py```), as well as their utility functions which I put in the ```deephar_replication/deephar_utils``` folder. [Here is their repo](https://github.com/dluvizon/deephar). I should use the cvpr18 branch, as that's the paper I'm implementing, but I ended up basing most of my code off the master branch (for the TPAMI'20 paper). Note that the code for the datasets they used is mostly copied from their implementation, with slight modifications to work with PyTorch.
+As I care about how the joints are stacked, I want to use human pose estimation, then use the body positioning and overall image to classify the the action. To accomplish the initial task, I will implement "2D/3D Pose Estimation and Action Recognition using Multitask Deep Learning" from scratch in PyTorch. I will be using the paper and the authors' Tensorflow code to do so. Like them, I will intially train the pose estimation part of the model with the MPII Human Pose Dataset and use the same preprocessing methods they do, as well as their utility functions which I put in the ```deephar_replication/deephar_utils``` folder. [Here is their repo](https://github.com/dluvizon/deephar). I should use the cvpr18 branch, as that's the paper I'm implementing, but I ended up basing most of my code off the master branch (for the TPAMI'20 paper). Note that the code for the datasets they used is mostly copied from their implementation, with slight modifications to work with PyTorch. See ```deephar_replication/data/datasets.md``` for more.
 
 Note that I am [using Google docstrings](https://github.com/google/styleguide/blob/gh-pages/pyguide.md#38-comments-and-docstrings), which were pretty easy to do with the help of Github Copilot.
 
 ## Dataset
 To-do.
-Download Google Images then use a program to label easily.
 
-## Sources
-### Papers Implemented/Code Used
-- [2D/3D Pose Estimation and Action Recognition using Multitask Deep Learning](https://arxiv.org/pdf/1802.09232.pdf) combining action recognition and pose estimation using one network. **I'm currently in the process of implementing**.
+I will initially start by classifying handstands as straight-line handstands. Once this works, I can extend the model to other exercises, perhaps comparing squat/deadlift/bench form to that of expert powerlifters.
 
+To obtain the data, download from Google Images then use a program to label easily.
+
+## Future Goals
+### Showing Incorrect Form
+A 'perfectly straight' handstand, perhaps according to averaging from the training data should be overlayed over the provided image to explain the differences. Or, perhaps I can transform the user inputted handstand into a straight-line handstand and place the images side-by-side, so that they could see where they're going wrong. To do this, I can use a General Adversarial Network (GAN), perhaps using the vector of results from the pose estimate as an input in addition to the image.
+
+## Papers Implemented/Code Used
+- [2D/3D Pose Estimation and Action Recognition using Multitask Deep Learning](https://arxiv.org/pdf/1802.09232.pdf) combining action recognition and pose estimation using one network.
+
+## General Sources
 ### Combining Action Recognition and Pose Estimation
 - [Coupled Action Recognition and Pose Estimation from
 Multiple Views](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.308.5466&rep=rep1&type=pdf)
