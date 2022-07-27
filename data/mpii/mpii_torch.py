@@ -144,7 +144,9 @@ class Mpii(Dataset):
         and also remove the joints according to the authors' method.
 
         TODO: How to deal with more than one pose in image? treat separately?
-    
+        This paper https://cse.buffalo.edu/~siweilyu/papers/eccv18.pdf says
+        each subject is used individually, which is what I'll do.
+
         """
         output = {}
 
