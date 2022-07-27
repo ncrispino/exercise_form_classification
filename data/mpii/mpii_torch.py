@@ -27,32 +27,6 @@ from data_config import mpii_dataconf
 
 from torch.utils.data import Dataset
 
-def serialize_annorect(rectidxs, annot):
-    # assert len(rectidxs) == len(annorect)
-    annorect = annot['annorect']
-
-    sample_list = []
-    for i in range(len(rectidxs)):
-        rec = rectidxs[i]
-        for j in rec:
-        # for j in range(rec.size):
-            # idx = rec[j,0]-1 # Convert idx from Matlab
-            ann = annorect.loc[j, :]
-            annot = {}
-            try:
-                annot['head'] = [annot.loc[j, 'annorect'][k][0][0] for k in range(4)] #ann['head'][0,0][0] # Coordinates of head rectangle (there are 4).
-                annot['objpos'] = ann['objpos'][0,0][0]
-                annot['scale'] = ann['scale'][0,0][0,0]
-                annot['pose'] = ann['annopoints'][0,0]
-                annot['imgidx'] = j
-                sample_list.append(annot)
-            except:
-                print('Error:', j)
-                continue
-
-    return sample_list
-
-
 def calc_head_size(head_annot):
     head = np.array([float(head_annot[0]), float(head_annot[1]),
         float(head_annot[2]), float(head_annot[3])])
@@ -72,10 +46,15 @@ class Mpii(Dataset):
     around 15k images are used for training, 3k for validation, and 7k for testing.
     Currently, there are 18k images in the training set and 7k in the testing set.
     So, I will manually split the training set, using 1/6th of the images for validation.
+    This is done before I split each image's annotations into single person annotations,
+    resulting in ~40k total data human poses, which may be more unbalanced
+    as I split the data before this separation.
+    This paper https://cse.buffalo.edu/~siweilyu/papers/eccv18.pdf is clear 
+    about this individual person split, which is what I'll do.
 
     """
     
-    def __init__(self, dataconf, annotation_path, mode, dataset_path='data\mpii_human_pose',
+    def __init__(self, dataconf, mode, dataset_path='data\mpii_human_pose',
                     poselayout=pa16j2d, remove_outer_joints=True, 
                     transform=None, target_transform = None):                    
         self.mode = mode  
@@ -84,11 +63,16 @@ class Mpii(Dataset):
         self.poselayout = poselayout
         self.remove_outer_joints = remove_outer_joints   
         img_train_list, ann_train_list, img_test_list, ann_test_list = load_mpii_pose_dataset(is_16_pos_only=True)    
+        # Convert to numpy arrays for math operations and easier slicing.
+        img_train_list = np.array(img_train_list)
+        ann_train_list = np.array(ann_train_list, dtype='object')
+        img_test_list = np.array(img_test_list)
+        ann_test_list = np.array(ann_test_list, dtype='object')                    
         shuffled_train_idxs = np.arange(len(img_train_list))
         np.random.seed(42)
         np.random.shuffle(shuffled_train_idxs)
         val_idxs = shuffled_train_idxs[:int(len(img_train_list) / 6)]
-        train_idxs = shuffled_train_idxs[int(len(img_train_list) / 6):]
+        train_idxs = shuffled_train_idxs[int(len(img_train_list) / 6):]      
         if mode == TEST_MODE:
             self.img_list = img_test_list
             self.ann_list = ann_test_list
@@ -98,29 +82,22 @@ class Mpii(Dataset):
         elif mode == VAL_MODE:
             self.img_list = img_train_list[val_idxs]
             self.ann_list = ann_train_list[val_idxs] 
-    
-    # def load_annotations(self, filename):
-    #     try:
-    #         # rectidxs, annot = load_mpii_mat_annotation(filename)
-    #         # images = annot['image']
-
-    #         self.samples = {}
-    #         self.samples[TEST_MODE] = [] # No samples for test
-    #         self.samples[TRAIN_MODE] = serialize_annorect(
-    #                 rectidxs[TRAIN_MODE], annorect[TRAIN_MODE])
-    #         self.samples[VALID_MODE] = serialize_annorect(
-    #                 rectidxs[VALID_MODE], annorect[VALID_MODE])
-    #         self.images = annot['img_paths']
-
-    #     except:
-    #         warning('Error loading the MPII dataset!')
-    #         raise
+        # Split ann_list into single person annotations. 
+        # Note that indexes with img list will no longer match so need to create
+        # a new img list with repeated images.
+        single_ann_list = []
+        single_img_list = []
+        for i, img_ann in enumerate(self.ann_list):
+            for person in img_ann:
+                single_ann_list.append(person)
+                single_img_list.append(self.img_list[i])
+        self.img_list = single_img_list
+        self.ann_list = single_ann_list
 
     def load_image(self, idx):
         try:
-            image = self.img_list[idx]
-            imgt = T(Image.open(os.path.join(
-                self.dataset_path, 'images', image)))
+            image_path = self.img_list[idx]
+            imgt = T(Image.open(image_path))
         except:
             warning('Error loading sample key/mode: %d/%d' % (idx, self.mode))
             raise
@@ -128,7 +105,7 @@ class Mpii(Dataset):
         return imgt
 
     def __len__(self):
-        return len(self.img_list)
+        return len(self.ann_list)
     
     def __getitem__(self, idx, fast_crop=False):
         """
@@ -141,11 +118,7 @@ class Mpii(Dataset):
         Note that this may differ from how the authors intended, 
         as I'm not entirely sure how their pose data was organized.
         In my version, I remove the non-visible joints from tensorlayer data
-        and also remove the joints according to the authors' method.
-
-        TODO: How to deal with more than one pose in image? treat separately?
-        This paper https://cse.buffalo.edu/~siweilyu/papers/eccv18.pdf says
-        each subject is used individually, which is what I'll do.
+        and also remove the joints according to the authors' method.                
 
         """
         output = {}
@@ -155,7 +128,7 @@ class Mpii(Dataset):
         else:
             dconf = self.dataconf.get_fixed_config()
 
-        imgt = self.load_image(idx, self.mode)
+        imgt = self.load_image(idx)
         annot = self.ann_list[idx]
 
         scale = 1.25*annot['scale']
@@ -185,7 +158,7 @@ class Mpii(Dataset):
 
         head = annot['head_rect']
         p[self.poselayout.map_to_mpii, 0:2] = \
-                transform_2d_points(imgt.afmat, annot['pose'].T, transpose=True)
+                transform_2d_points(imgt.afmat, annot['pose'], transpose=True)
         if imgt.hflip:
             p = p[self.poselayout.map_hflip, :]
 
@@ -201,11 +174,8 @@ class Mpii(Dataset):
 
         return output
 
-if __name__=='__main__':           
-    img_train_list, ann_train_list, img_test_list, ann_test_list = load_mpii_pose_dataset(is_16_pos_only=True)
-    print(len(img_train_list), len(img_test_list)) 
-    print(ann_train_list[0]) #, 0].keys())   
-    # print(ann_train_list[2248])
-    # print(ann_train_list[0][0].keys())
-    # print(img_train_list[0], 'yo', ann_train_list[0])
-    # image = tl.vis.read_image(img_train_list[0])
+if __name__=='__main__':          
+    dataconf = mpii_dataconf
+    mpii = Mpii(dataconf, mode=TRAIN_MODE)
+    print(len(mpii))
+    print(mpii[0])
