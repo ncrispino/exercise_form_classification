@@ -1,11 +1,12 @@
 """MPII to Python from TensorLayer.
 
-Link: https://tensorlayer.readthedocs.io/en/latest/_modules/tensorlayer/files/dataset_loaders/mpii_dataset.html.
+Copied from https://tensorlayer.readthedocs.io/en/latest/_modules/tensorlayer/files/dataset_loaders/mpii_dataset.html.
 Doesn't have scale or objpos, so I had to slightly modify the code.
 
 """
 
 import os
+import numpy as np
 
 from tensorlayer import logging
 from tensorlayer.files.utils import (del_file, folder_exists, load_file_list, maybe_download_and_extract)
@@ -91,7 +92,7 @@ def load_mpii_pose_dataset(path='data', is_16_pos_only=False):
     img_train_list = []
     img_test_list = []
 
-    def save_joints():
+    def save_joints(N_J=16):        
         # joint_data_fn = os.path.join(path, 'data.json')
         # fp = open(joint_data_fn, 'w')
         mat = sio.loadmat(os.path.join(path, extracted_filename, "mpii_human_pose_v1_u12_1.mat"))        
@@ -127,26 +128,14 @@ def load_mpii_pose_dataset(path='data', is_16_pos_only=False):
             else:
                 scales = [] # TODO                        
 
-            # objpos    
-            try:                        
-                if 'objpos' in str(anno['annorect'].dtype):
-                    # print(anno['annorect']['objpos'])
-                    # print('indvidual objpos')
-                    # print([float(x['x'][0, 0][0, 0]) for x in anno['annorect']['objpos'][0]])
-                    # print([float(x['x'][0, 0][0, 0]) if 'x' in str(x.dtype) else [] for x in anno['annorect']['objpos'][0]])
-                    objpos = zip(
-                        [float(x['x'][0, 0][0, 0]) if 'x' in str(x.dtype) else [] for x in anno['annorect']['objpos'][0]], 
-                        [float(y['y'][0, 0][0, 0]) if 'y' in str(y.dtype) else [] for y in anno['annorect']['objpos'][0]]
-                    )
-                else:
-                    objpos = []  # TODO       
-
-            except: # I think the problem is if there is no x or y? Check for empty arrays in both scales and objpos?
-                print('EXCEPT:')
-                print(img_fn)
-                print(num)
-                # print(scales)                
-                print(anno['annorect']['objpos'])                
+            # objpos                                       
+            if 'objpos' in str(anno['annorect'].dtype):
+                objpos = zip(
+                    [float(x['x'][0, 0][0, 0]) if 'x' in str(x.dtype) else [] for x in anno['annorect']['objpos'][0]], 
+                    [float(y['y'][0, 0][0, 0]) if 'y' in str(y.dtype) else [] for y in anno['annorect']['objpos'][0]]
+                )                
+            else:
+                objpos = []  # TODO                            
 
             if 'annopoints' in str(anno['annorect'].dtype):
                 annopoints = anno['annorect']['annopoints'][0]
@@ -155,8 +144,8 @@ def load_mpii_pose_dataset(path='data', is_16_pos_only=False):
                 head_x2s = anno['annorect']['x2'][0]
                 head_y2s = anno['annorect']['y2'][0]
 
-                for annopoint, head_x1, head_y1, head_x2, head_y2, scale in zip(annopoints, head_x1s, head_y1s, head_x2s,
-                                                                                        head_y2s, scales):
+                for annopoint, head_x1, head_y1, head_x2, head_y2, scale, op in zip(annopoints, head_x1s, head_y1s, head_x2s,
+                                                                                        head_y2s, scales, objpos):
                     # if annopoint != []:
                     # if len(annopoint) != 0:
                     if annopoint.size:
@@ -177,12 +166,20 @@ def load_mpii_pose_dataset(path='data', is_16_pos_only=False):
                             joint_pos[int(_j_id)] = [float(_x), float(_y)]
                         # joint_pos = fix_wrong_joints(joint_pos)
 
-                        # visibility list
+                        # visibility list and pose list
                         if 'is_visible' in str(annopoint.dtype):
                             vis = [v[0] if v.size > 0 else [0] for v in annopoint['is_visible'][0]]
-                            vis = dict([(k, int(v[0])) if len(v) > 0 else v for k, v in zip(j_id, vis)])
+                            vis = dict([(k, int(v[0])) if len(v) > 0 else v for k, v in zip(j_id, vis)])    
+                            vis_joints = sorted([int(k) for k in vis.keys() if vis[k] == 1])  # num of each visible joint 
+                            # [N_J, dim=2] array of joints with non-visible joints set to NaN.                 
+                            pose = np.zeros((N_J, 2))    
+                            pose[:] = np.nan                           
+                            for i in vis_joints:                                
+                                pose[i, :] = joint_pos[i]
                         else:
-                            vis = None                        
+                            vis = None   
+                            pose = None   
+                                                                                                         
 
                         # if len(joint_pos) == 16:
                         if ((is_16_pos_only ==True) and (len(joint_pos) == 16)) or (is_16_pos_only == False):
@@ -193,8 +190,9 @@ def load_mpii_pose_dataset(path='data', is_16_pos_only=False):
                                 'head_rect': head_rect,
                                 'is_visible': vis,
                                 'joint_pos': joint_pos,
-                                'scale': scale,
-                                'objpos': objpos,
+                                'pose': pose,
+                                'scale': scale[0, 0],
+                                'objpos': op,
                             }
                             # print(json.dumps(data), file=fp)  # py3
                             if train_flag:
@@ -287,3 +285,5 @@ def load_mpii_pose_dataset(path='data', is_16_pos_only=False):
 
 if __name__=='__main__':
     img_train_list, ann_train_list, img_test_list, ann_test_list = load_mpii_pose_dataset(is_16_pos_only=True)
+    print(ann_train_list[0])
+    print(img_train_list[0])

@@ -1,7 +1,9 @@
 """Makes MPII data into a PyTorch Dataset.
 
-Copied from https://github.com/dluvizon/deephar/blob/cvpr18/deephar/data/mpii.py.
+Most is copied from https://github.com/dluvizon/deephar/blob/cvpr18/deephar/data/mpii.py.
 Had to change the loading process as the Matlab file wasn't exactly the same.
+Instead, I use a function from the tensorlayer library
+with slight modifications so as to have all the necessary data.
 
 """
 
@@ -12,7 +14,8 @@ import numpy as np
 import scipy.io as sio
 import pandas as pd
 from PIL import Image
-import tensorlayer as tl
+# import tensorlayer as tl
+from mpii_tensorlayer import load_mpii_pose_dataset # use customized function
 
 import sys
 sys.path.insert(0, '../../models')
@@ -23,72 +26,6 @@ from data_config import DataConfig
 from data_config import mpii_dataconf
 
 from torch.utils.data import Dataset
-
-def load_mpii_mat_annotation(filename):
-    """Takes mpii raw Matlab data and makes it easily accessible using Pandas.
-
-    Args:
-        filename: Path to the MPII raw Matlab data.
-    
-    Returns:
-        rectidxs: A list of lists of indices of the indexes in the Pandas df 
-        for testing [0], training [1], and validation data [2]. 
-
-        annot: A Pandas df containing the annotations for the MPII dataset. 
-        It has 4 columns, two of which, 'image' and 'annorect', we care about.
-        'image' is the path to the image, and 'annorect' is a list of 
-        attributes contained in the annotations.
-
-    """
-    mat = sio.loadmat(filename) # Read in as np record array
-    mat = mat['RELEASE']        
-
-    # Get indices for training and validation.
-    img_train = mat['img_train'][0][0][0]
-    train_idxs = np.where(img_train)
-    val_idxs = np.where(img_train == 0)
-    
-    # ~25k total imgs; each holds 4 arrays: image, annorect, frame_sec, vididx.
-    annolist = mat['annolist'][0][0][0]
-    # annot_tr = annolist[train_idxs]
-    # annot_val = annolist[val_idxs] 
-
-    # Change to Pandas for ease of use.
-    annot = pd.DataFrame(annolist)
-    print(annot.head())
-    print(annot.loc[4, 'annorect'][0][0])
-    # print(annot['annorect'][0].dtype)
-    # print(annot['annorect'][0][0][0].dtype)
-    # annot_tr = pd.DataFrame(annot_tr)  
-    # annot_val = pd.DataFrame(annot_val)  
-
-    # print(annot_tr_df['image'])
-    # print(annot_tr.head())    
-    # annot_tr['image'] = annot_tr['image'].apply(lambda x: x[0][0][0][0])
-    # annot_val['image'] = annot_val['image'].apply(lambda x: x[0][0][0][0])  
-    annot['image'] = annot['image'].apply(lambda x: x[0][0][0][0])
-    def isolate_annorect(x):
-        try:
-            return x[0][0]
-        except:
-            return np.nan    
-    annot['annorect'] = annot['annorect'].apply(isolate_annorect)  
-    print(annot.isna().sum())
-
-    # Respect the order of TEST (0), TRAIN (1), and VALID (2)
-    rectidxs = [None, train_idxs, val_idxs]
-    print(annot.loc[4, 'annorect'][0])
-    print([annot.loc[4, 'annorect'][k][0][0] for k in range(4)])
-    # images = [None, annot_tr['image'], annot_val['image']]
-    # print(annot_tr['annorect'][0][0].dtype)
-    # quit()
-    # annorect = [None, annot_tr[:, 2], annot_val[:, 2]]
-    # rectidxs = [None, train_idxs, val_idxs]
-    # images = [None, annot_tr[:, 1], annot_val[:, 1]]
-    # annorect = [None, annot_tr[:, 2], annot_val[:, 2]]
-
-    return rectidxs, annot
-
 
 def serialize_annorect(rectidxs, annot):
     # assert len(rectidxs) == len(annorect)
@@ -128,6 +65,8 @@ class Mpii(Dataset):
     Code copied from/based on MpiiSinglePerson class in mpii.py.
     I am using tensorlayer, as they do all the preprocessing for me.
     Link: https://tensorlayer.readthedocs.io/en/latest/_modules/tensorlayer/files/dataset_loaders/mpii_dataset.html.
+    I modified the code in mpii_tensorlayer to include scale, objpos, 
+    and pose (N_J, 2) array holding all visible joints, with non-visible set to NaN.
 
     This splits into training and testing sets. According to the paper I'm replicating, 
     around 15k images are used for training, 3k for validation, and 7k for testing.
@@ -136,14 +75,15 @@ class Mpii(Dataset):
 
     """
     
-    def __init__(self, dataset_path, dataconf, annotation_path, mode, 
+    def __init__(self, dataconf, annotation_path, mode, dataset_path='data\mpii_human_pose',
                     poselayout=pa16j2d, remove_outer_joints=True, 
-                    transform=None, target_transform = None):
+                    transform=None, target_transform = None):                    
         self.mode = mode  
+        self.dataset_path = dataset_path
         self.dataconf = dataconf    
         self.poselayout = poselayout
         self.remove_outer_joints = remove_outer_joints   
-        img_train_list, ann_train_list, img_test_list, ann_test_list = tl.files.load_mpii_pose_dataset(is_16_pos_only=True)    
+        img_train_list, ann_train_list, img_test_list, ann_test_list = load_mpii_pose_dataset(is_16_pos_only=True)    
         shuffled_train_idxs = np.arange(len(img_train_list))
         np.random.seed(42)
         np.random.shuffle(shuffled_train_idxs)
@@ -176,22 +116,36 @@ class Mpii(Dataset):
     #         warning('Error loading the MPII dataset!')
     #         raise
 
-    # def load_image(self, key):
-    #     try:
-    #         annot = self.samples[self.mode][key]
-    #         image = self.images[self.mode][annot['imgidx']][0]
-    #         imgt = T(Image.open(os.path.join(
-    #             self.dataset_path, 'images', image)))
-    #     except:
-    #         warning('Error loading sample key/mode: %d/%d' % (key, self.mode))
-    #         raise
+    def load_image(self, idx):
+        try:
+            image = self.img_list[idx]
+            imgt = T(Image.open(os.path.join(
+                self.dataset_path, 'images', image)))
+        except:
+            warning('Error loading sample key/mode: %d/%d' % (idx, self.mode))
+            raise
 
-    #     return imgt
+        return imgt
 
     def __len__(self):
         return len(self.img_list)
     
     def __getitem__(self, idx, fast_crop=False):
+        """
+
+        The provided code has annot['pose'], which according to the 
+        transform functions should have shape [N_joints, dim].
+        I already edited the tensorlayer code so as to provide only the visible joints.
+        If a joint is not visible according to the retrieved data, I set the respective coordinates to NaN.
+
+        Note that this may differ from how the authors intended, 
+        as I'm not entirely sure how their pose data was organized.
+        In my version, I remove the non-visible joints from tensorlayer data
+        and also remove the joints according to the authors' method.
+
+        TODO: How to deal with more than one pose in image? treat separately?
+    
+        """
         output = {}
 
         if self.mode == TRAIN_MODE:
@@ -246,9 +200,10 @@ class Mpii(Dataset):
         return output
 
 if __name__=='__main__':           
-    img_train_list, ann_train_list, img_test_list, ann_test_list = tl.files.load_mpii_pose_dataset(is_16_pos_only=True)
-    print(len(img_train_list), len(img_test_list))
-    print(ann_train_list[0])
-    print(ann_train_list[0][0].keys())
+    img_train_list, ann_train_list, img_test_list, ann_test_list = load_mpii_pose_dataset(is_16_pos_only=True)
+    print(len(img_train_list), len(img_test_list)) 
+    print(ann_train_list[0]) #, 0].keys())   
+    # print(ann_train_list[2248])
+    # print(ann_train_list[0][0].keys())
     # print(img_train_list[0], 'yo', ann_train_list[0])
     # image = tl.vis.read_image(img_train_list[0])
