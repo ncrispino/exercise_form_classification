@@ -54,7 +54,7 @@ class Mpii(Dataset):
 
     """
     
-    def __init__(self, dataconf, mode, dataset_path='data\mpii_human_pose',
+    def __init__(self, mode, dataconf=mpii_dataconf, dataset_path='data\mpii_human_pose',
                     poselayout=pa16j2d, remove_outer_joints=True, 
                     transform=None, target_transform = None):                    
         self.mode = mode  
@@ -174,8 +174,7 @@ class Mpii(Dataset):
 
         return output
 
-if __name__=='__main__':          
-    dataconf = mpii_dataconf
-    mpii = Mpii(dataconf, mode=TRAIN_MODE)
+if __name__=='__main__':              
+    mpii = Mpii(mode=TRAIN_MODE)
     print(len(mpii))
     print(mpii[0])
