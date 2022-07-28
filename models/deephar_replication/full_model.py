@@ -32,7 +32,7 @@ class Model(nn.Module):
         mstem = EntryFlow()
         entry_input = mstem(x)        
         pose = PoseEstimation(self.N_J, B=B)
-        prob_maps, joints, pose_out = pose(entry_input)                        
+        visibility, prob_maps, joints = pose(entry_input)                        
         action_recognition = ActionRecognition(self.N_a, B=B)
         out = action_recognition(joints, entry_input, prob_maps)
         return out

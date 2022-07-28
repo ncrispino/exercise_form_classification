@@ -79,7 +79,8 @@ class PoseUpBlock(nn.Module):
         self.softargmax_xy = SoftArgMax()
         self.softargmax_z = SoftArgMax()
         self.batch_norm = nn.BatchNorm2d(576)
-        self.relu = nn.ReLU()
+        self.relu = nn.ReLU()  
+        self.sigmoid = nn.Sigmoid()      
     
     def forward(self, x):
         """
@@ -88,6 +89,8 @@ class PoseUpBlock(nn.Module):
             B x 576 x 32 x 32 tensor.            
         
         Returns:
+            B x N_J x 1 probability of a certain joint being visible.
+
             B x N_J x H x W probability maps obtained from xy heatmaps.
 
             B x N_J x 3 location of all joints. 
@@ -107,9 +110,16 @@ class PoseUpBlock(nn.Module):
         heatmaps_z = torch.mean(heatmaps, dim=(3, 4)) # Avg on x & y.
         joints_z = self.softargmax_z(heatmaps_z)        
         joints = torch.cat((joints_xy, joints_z), dim=2)
+
         # After heatmaps for block output.
         out2 = self.conv2(out2)
-        return prob_xy, joints, x + self.relu(self.batch_norm(out1 + out2))
+
+        # Visibility is sigmoid applied to the sum of global max pooling 
+        # on each of the heatmaps. See deephar/models/reception.py.
+        v_xy, _ = torch.max(heatmaps_xy, dim=(2, 3))
+        v_z, _ = torch.max(heatmaps_xy, dim=2)
+        visibility = self.sigmoid(v_xy + v_z).unsqueeze(-1)
+        return visibility, prob_xy, joints, x + self.relu(self.batch_norm(out1 + out2))
 
 class PoseBlock(nn.Module):
     """Full pose block. 
@@ -127,8 +137,8 @@ class PoseBlock(nn.Module):
     
     def forward(self, x):
         out = self.pose_down(x)
-        prob_maps, joints, out = self.pose_up(out)
-        return prob_maps, joints, out
+        visibility, prob_maps, joints, out = self.pose_up(out)
+        return visibility, prob_maps, joints, out
 
 class PoseEstimation(nn.Module):
     """Combines K pose blocks together.
@@ -156,15 +166,18 @@ class PoseEstimation(nn.Module):
             B x 576 x 32 x 32 tensor.
 
         Returns:
+            B x N_J x 1 probability of a certain joint being visible.
+
             B x N_J x H x W probability maps obtained from the Kth block.
 
             B x 3 x T x N_J location of all joints from the Kth block.
 
-            B x 576 x 32 x 32 output tensor from the Kth block. 
+            Note: Does not return B x 576 x 32 x 32 output tensor from the 
+            Kth block, as it's not used in action recognition.
 
         """ 
 
         out = x
         for block in self.prediction_blocks:
-            prob_maps, joints, out = block(out)            
-        return prob_maps, joints.view(self.B, joints.shape[2], -1, joints.shape[1]), out
+            visibility, prob_maps, joints, out = block(out)            
+        return visibility, prob_maps, joints.view(self.B, joints.shape[2], -1, joints.shape[1])
