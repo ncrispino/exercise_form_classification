@@ -10,3 +10,5 @@ So, I'll add joint visibility (from heatmap to Sigmoid) in forward methods as in
 
 Training: https://github.com/dluvizon/deephar/blob/fbebb148a3b7153f911b86e1a7300aa32c336f31/exp/mpii/train_mpii_singleperson.py
 Find out how to add augmented training data as in the paper.
+
+Testing: Dataset set up wrong, as it will show a list of length 0 (no annotations for test set). Need to specifically account for this

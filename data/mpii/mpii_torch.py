@@ -45,7 +45,7 @@ class Mpii(Dataset):
     So, I will manually split the training set, using 1/6th of the images for validation.
     This is done before I split each image's annotations into single person annotations,
     resulting in ~40k total data human poses, which may be more unbalanced
-    as I split the data before this separation.
+    as I split the data before this separation. (e.g., in training, goes from 15065 to 16675)
     This paper https://cse.buffalo.edu/~siweilyu/papers/eccv18.pdf is clear 
     about this individual person split, which is what I'll do.
 
