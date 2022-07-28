@@ -65,14 +65,16 @@ class PoseUpBlock(nn.Module):
 
     Attributes:
         N_J: number of body joints
-        N_d: number of depth heat maps per joint     
+        N_d: number of depth heat maps per joint    
+        dim: dimension of the input (2 or 3) 
 
     """
 
-    def __init__(self, N_J, N_d):
+    def __init__(self, N_J, N_d, dim):
         super().__init__()
         self.N_J = N_J
         self.N_d = N_d
+        self.dim = dim
         self.sc = SCBlock(576, 576, 5)
         self.conv1 = ConvBlock(576, N_d * N_J, 1)
         self.conv2 = ConvBlock(N_d * N_J, 576, 1)
@@ -104,9 +106,12 @@ class PoseUpBlock(nn.Module):
         # Average the N_d heatmaps for each N_J to get B x N_J x H x W.
         heatmaps_xy = torch.mean(heatmaps, dim=2) # Avg on z.
         prob_xy = spacial_softmax(heatmaps_xy)    
-        joints_xy = self.softargmax_xy(prob_xy, apply_softmax=False)        
-        heatmaps_z = torch.mean(heatmaps, dim=(3, 4)) # Avg on x & y.
-        joints_z = self.softargmax_z(heatmaps_z)        
+        joints_xy = self.softargmax_xy(prob_xy, apply_softmax=False) 
+        if self.dim == 2:       
+            joints_z = torch.zeros((heatmaps.shape[0], heatmaps.shape[1], 1)) # B x N_J x 1
+        else:
+            heatmaps_z = torch.mean(heatmaps, dim=(3, 4)) # Avg on x & y.
+            joints_z = self.softargmax_z(heatmaps_z)        
         joints = torch.cat((joints_xy, joints_z), dim=2)
 
         # After heatmaps for block output.
@@ -114,9 +119,9 @@ class PoseUpBlock(nn.Module):
         out = x + out1 + out2
 
         # Visibility is sigmoid applied to the sum of global max pooling 
-        # on each of the heatmaps. See deephar/models/reception.py.
-        v_xy, _ = torch.max(heatmaps_xy, dim=(2, 3))
-        v_z, _ = torch.max(heatmaps_xy, dim=2)
+        # on each of the heatmaps. See deephar/models/reception.py.        
+        v_xy = torch.amax(heatmaps_xy, dim=(2, 3))
+        v_z = torch.amax(heatmaps_z, dim=2)
         visibility = self.sigmoid(v_xy + v_z).unsqueeze(-1)
         return visibility, prob_xy, joints, out
 
@@ -126,13 +131,14 @@ class PoseBlock(nn.Module):
     Attributes:
         N_J: number of body joints
         N_d: number of depth heat maps per joint   
+        dim: dimension of the input (2 or 3)
 
     """
 
-    def __init__(self, N_J, N_d):
-        super().__init__()
+    def __init__(self, N_J, N_d, dim):
+        super().__init__()        
         self.pose_down = PoseDownBlock()
-        self.pose_up = PoseUpBlock(N_J, N_d)
+        self.pose_up = PoseUpBlock(N_J, N_d, dim)
     
     def forward(self, x):
         out = self.pose_down(x)
@@ -150,13 +156,14 @@ class PoseEstimation(nn.Module):
 
     """
 
-    def __init__(self, N_J, B, N_d=16, K=8):
+    def __init__(self, N_J, B, dim, N_d=16, K=8):
         super().__init__()
         self.K = K
-        self.N_J = N_J
+        self.N_J = N_J        
         self.B = B
+        self.dim = dim
         self.N_d = N_d
-        self.prediction_blocks = [PoseBlock(N_J, N_d) for i in range(K)]        
+        self.prediction_blocks = [PoseBlock(N_J, N_d, dim) for i in range(K)]        
     
     def forward(self, x): 
         """
@@ -165,7 +172,7 @@ class PoseEstimation(nn.Module):
             B x 576 x 32 x 32 tensor.
 
         Returns:
-            B x N_J x 1 probability of a certain joint being visible.
+            B x 1 x T x N_J probability of a certain joint being visible.
 
             B x N_J x H x W probability maps obtained from the Kth block.
 
@@ -179,4 +186,4 @@ class PoseEstimation(nn.Module):
         out = x
         for block in self.prediction_blocks:
             visibility, prob_maps, joints, out = block(out)            
-        return visibility, prob_maps, joints.view(self.B, joints.shape[2], -1, joints.shape[1])
+        return visibility.view(self.B, 1, -1, joints.shape[1]), prob_maps, joints.view(self.B, joints.shape[2], -1, joints.shape[1])
