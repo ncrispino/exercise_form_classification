@@ -78,8 +78,6 @@ class PoseUpBlock(nn.Module):
         self.conv2 = ConvBlock(N_d * N_J, 576, 1)
         self.softargmax_xy = SoftArgMax()
         self.softargmax_z = SoftArgMax()
-        self.batch_norm = nn.BatchNorm2d(576)
-        self.relu = nn.ReLU()  
         self.sigmoid = nn.Sigmoid()      
     
     def forward(self, x):
@@ -113,13 +111,14 @@ class PoseUpBlock(nn.Module):
 
         # After heatmaps for block output.
         out2 = self.conv2(out2)
+        out = x + out1 + out2
 
         # Visibility is sigmoid applied to the sum of global max pooling 
         # on each of the heatmaps. See deephar/models/reception.py.
         v_xy, _ = torch.max(heatmaps_xy, dim=(2, 3))
         v_z, _ = torch.max(heatmaps_xy, dim=2)
         visibility = self.sigmoid(v_xy + v_z).unsqueeze(-1)
-        return visibility, prob_xy, joints, x + self.relu(self.batch_norm(out1 + out2))
+        return visibility, prob_xy, joints, out
 
 class PoseBlock(nn.Module):
     """Full pose block. 

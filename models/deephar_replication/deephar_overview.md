@@ -27,6 +27,7 @@ Also, I need to set the number of actions, which in my case will be 2 (straight 
 - fix imports in mpii_torch and training.py (right now, training.py runs but mpii_torch doesn't due to relative paths, I think)
 
 ### Model Changes
+- Batch norm and relu will not be applied at the end of each overall block (EntryFlow, PoseEstimation, ActionRecognition) if they end in a convolution (which is different than default). Note that I didn't exactly copy whether both were used after each individual block, but did what I think would be generally acceptable.
 - I will be applying the batch norm before the relu, though in [some data models performed better the other way around](https://www.reddit.com/r/MachineLearning/comments/67gonq/d_batch_normalization_before_or_after_relu/).
 - I'll assume whenever there's a skip connection, it will be followed by a batch norm and relu, except at the end.
 - Figuring out how to extract joint locations from the heatmaps (in PoseUpBlock) was pretty difficult for me. I looked at the implementation in the paper and was still confused; my implementation may be fairly different, though I think I figured it out by looking at the paper's code.

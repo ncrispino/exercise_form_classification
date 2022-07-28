@@ -1,4 +1,7 @@
 """Holds models shared by different parts of the network.
+
+Note that bias is set to False for all convolutions because I'm using 
+batch norm.
 """
 
 import torch
@@ -11,7 +14,7 @@ class ConvBlock(nn.Module):
         super().__init__()
         self.conv = nn.Conv2d(
             input_dim, output_dim, kernel_size=kernel_size, stride=stride, 
-            padding=padding)
+            padding=padding, bias=False)
         self.batch_norm = nn.BatchNorm2d(output_dim)
         self.relu = nn.ReLU()
 
@@ -38,9 +41,10 @@ class SCBlock(nn.Module):
         # Use n_in separate kernels of dim 1 x kernel_size x kernel_size, 
         # each for one channel.        
         self.depthwise_conv = nn.Conv2d(
-            n_in, n_in, kernel_size=s, groups=n_in, padding='same')
+            n_in, n_in, kernel_size=s, groups=n_in, padding='same', bias=False
+            )
         # Use a 1x1 conv (pointwise conv) to increase output dim
-        self.pointwise_conv = nn.Conv2d(n_in, n_out, kernel_size=1)
+        self.pointwise_conv = nn.Conv2d(n_in, n_out, kernel_size=1, bias=False)
         self.batch_norm = nn.BatchNorm2d(n_out)
         self.relu = nn.ReLU()
     
@@ -65,16 +69,17 @@ class SRBlock(nn.Module):
         n_out: number of output channels.
         s: size of convolutional kernel in depthwise convolution.
         include_batch_relu: whether to include batch normalization and 
-            relu after the convolutions.
+            relu after the convolutions before adding residual connection.
+            (Default is False because I don't think this is really done.)
 .
     """
 
-    def __init__(self, n_in, n_out, s, include_batch_relu=True):
+    def __init__(self, n_in, n_out, s, include_batch_relu=False):
         super().__init__()
         self.n_in = n_in
         self.n_out = n_out     
         self.include_batch_relu = include_batch_relu   
-        self.conv = nn.Conv2d(n_in, n_out, kernel_size=1)
+        self.conv = nn.Conv2d(n_in, n_out, kernel_size=1, bias=False)
         self.sc = SCBlock(n_in, n_out, s, include_batch_relu=True)
         self.batch_norm = nn.BatchNorm2d(n_out)
         self.relu = nn.ReLU()

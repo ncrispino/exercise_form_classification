@@ -32,7 +32,7 @@ class Inception2(nn.Module):
     Only need to call once in model, so not including parameters.
 
     """
-    
+
     def __init__(self):
         super().__init__()
         self.left = nn.Sequential(
@@ -73,7 +73,7 @@ class EntryFlow(nn.Module):
         self.inception3 = Inception1(
             192, 192, ckernel_size=3, cstride=2, pkernel_size=2, 
             pstride=2, cpadding=1, ppadding=0) #(192 x 32 x 32, 192 x 32 x 32) = 384 x 32 x 32  
-        self.sr = SRBlock(384, 576, 3) #576 x 32 x 32
+        self.sr = SRBlock(384, 576, 3, include_batch_relu=False) #576 x 32 x 32
     
     def forward(self, x):
         """
