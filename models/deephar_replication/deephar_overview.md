@@ -24,6 +24,7 @@ Also, I need to set the number of actions, which in my case will be 2 (straight 
 - should I write custom backwards functions if images only (x, y)?
 -**initialize well**
 -**overfit a single batch first**
+- fix imports in mpii_torch and training.py (right now, training.py runs but mpii_torch doesn't due to relative paths, I think)
 
 ### Model Changes
 - I will be applying the batch norm before the relu, though in [some data models performed better the other way around](https://www.reddit.com/r/MachineLearning/comments/67gonq/d_batch_normalization_before_or_after_relu/).

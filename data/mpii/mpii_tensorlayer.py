@@ -52,6 +52,7 @@ def load_mpii_pose_dataset(path='data', is_16_pos_only=False):
     - `MPII Keyponts and ID <http://human-pose.mpi-inf.mpg.de/#download>`__
     """
     path = os.path.join(path, 'mpii_human_pose')
+    print("this path: " + str(path))    
     logging.info("Load or Download MPII Human Pose > {}".format(path))
 
     # annotation
@@ -247,7 +248,7 @@ def load_mpii_pose_dataset(path='data', is_16_pos_only=False):
 
     ## read images dir
     logging.info("reading images list ...")
-    img_dir = os.path.join(path, extracted_filename2)
+    img_dir = os.path.join(path, extracted_filename2)    
     _img_list = load_file_list(path=os.path.join(path, extracted_filename2), regx='\\.jpg', printable=False)
     # ann_list = json.load(open(os.path.join(path, 'data.json')))
     for i, im in enumerate(img_train_list):

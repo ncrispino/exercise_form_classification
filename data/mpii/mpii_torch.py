@@ -13,15 +13,14 @@ from random import seed
 import numpy as np
 import torch
 from PIL import Image
-# import tensorlayer as tl
-from mpii_tensorlayer import load_mpii_pose_dataset # use customized function
+from data.mpii.mpii_tensorlayer import load_mpii_pose_dataset # use customized function
 
 import sys
 sys.path.insert(0, '../../models')
 sys.path.insert(1, '../')
 from deephar_replication.deephar_utils import *
 
-from data_config import mpii_dataconf
+from data.data_config import mpii_dataconf
 
 from torch.utils.data import Dataset
 
@@ -52,15 +51,15 @@ class Mpii(Dataset):
 
     """
     
-    def __init__(self, mode, dataconf=mpii_dataconf, dataset_path='data\mpii_human_pose',
+    def __init__(self, mode, dataconf=mpii_dataconf, dataset_path='data',
                     poselayout=pa16j2d, remove_outer_joints=True, 
                     transform=None, target_transform = None):                    
         self.mode = mode  
-        self.dataset_path = dataset_path
+        self.dataset_path = dataset_path # Set to just data folder as tensorlayer finds the mpii_human_pose dir.
         self.dataconf = dataconf    
         self.poselayout = poselayout
         self.remove_outer_joints = remove_outer_joints   
-        img_train_list, ann_train_list, img_test_list, ann_test_list = load_mpii_pose_dataset(is_16_pos_only=True)    
+        img_train_list, ann_train_list, img_test_list, ann_test_list = load_mpii_pose_dataset(path=dataset_path, is_16_pos_only=True)    
         # Convert to numpy arrays for math operations and easier slicing.
         img_train_list = np.array(img_train_list)
         ann_train_list = np.array(ann_train_list, dtype='object')
