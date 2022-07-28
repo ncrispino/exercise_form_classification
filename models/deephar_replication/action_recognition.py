@@ -24,13 +24,14 @@ class ActionStart(nn.Module):
     Attributes:
         pose_rec: whether to use pose-based recognition. If so,
             each conv has half the features as that of appearance recognition. 
+        pose_dim: the dimension of the pose features (2 or 3).
       
     """
 
-    def __init__(self, pose_rec):
+    def __init__(self, pose_rec, pose_dim):
         super().__init__()
         self.pose_rec = pose_rec
-        self.dim = 3 if pose_rec else 576
+        self.dim = pose_dim if pose_rec else 576
         if self.pose_rec: # half of what's shown in Figure 13
             self.conv_left1 = ConvBlock(self.dim, 6, (3, 1), padding='same')
             self.conv_middle1 = ConvBlock(self.dim, 12, 3, padding='same')
@@ -140,15 +141,16 @@ class ActionCombined(nn.Module):
         N_a: number of actions.
         K: number of action recognition blocks.
         B: batch size.
+        pose_dim: the dimension of the pose features (2 or 3).
 
     """   
 
-    def __init__(self, pose_rec, N_a, K, B):
+    def __init__(self, pose_rec, N_a, K, B, pose_dim=2):
         super().__init__()
         self.N_a = N_a
         self.K = K
         self.B = B
-        self.action_start = ActionStart(pose_rec)
+        self.action_start = ActionStart(pose_rec, pose_dim)
         self.action_blocks = [ActionBlock(pose_rec=pose_rec, N_a=self.N_a) for i in range(K)]        
     
     def forward(self, x):
@@ -206,15 +208,16 @@ class ActionRecognition(nn.Module):
         N_a: number of actions.
         B: batch size.
         K: number of action recognition blocks.
+        pose_dim: the dimension of the pose features (2 or 3).
 
     """
 
-    def __init__(self, N_a, B, K=4):
+    def __init__(self, N_a, B, pose_dim, K=4):
         super().__init__()
         self.N_a = N_a
         self.B = B
         self.K = K        
-        self.pose_rec = ActionCombined(True, N_a, K, B)
+        self.pose_rec = ActionCombined(True, N_a, K, B, pose_dim)
         self.appear_rec = ActionCombined(False, N_a, K, B)
         self.fc = nn.Linear(2 * N_a, N_a)
         self.log_softmax = nn.LogSoftmax(dim=1)

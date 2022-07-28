@@ -93,7 +93,7 @@ class PoseUpBlock(nn.Module):
 
             B x N_J x H x W probability maps obtained from xy heatmaps.
 
-            B x N_J x 3 location of all joints. 
+            B x N_J x dim location of all joints. 
 
             B x 576 x 32 x 32 output tensor to be fed into the next block.  
 
@@ -107,12 +107,13 @@ class PoseUpBlock(nn.Module):
         heatmaps_xy = torch.mean(heatmaps, dim=2) # Avg on z.
         prob_xy = spacial_softmax(heatmaps_xy)    
         joints_xy = self.softargmax_xy(prob_xy, apply_softmax=False) 
-        if self.dim == 2:       
-            joints_z = torch.zeros((heatmaps.shape[0], heatmaps.shape[1], 1)) # B x N_J x 1
+        if self.dim == 2:    
+            joints = joints_xy   
+            # joints_z = torch.zeros((heatmaps.shape[0], heatmaps.shape[1], 1)) # B x N_J x 1
         else:
             heatmaps_z = torch.mean(heatmaps, dim=(3, 4)) # Avg on x & y.
-            joints_z = self.softargmax_z(heatmaps_z)        
-        joints = torch.cat((joints_xy, joints_z), dim=2)
+            joints_z = self.softargmax_z(heatmaps_z)      
+            joints = torch.cat((joints_xy, joints_z), dim=2)            
 
         # After heatmaps for block output.
         out2 = self.conv2(out2)
