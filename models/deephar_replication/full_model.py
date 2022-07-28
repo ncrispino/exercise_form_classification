@@ -15,8 +15,9 @@ class Model(nn.Module):
 
     """
     
-    def __init__(self, N_J=17, N_a=2):
+    def __init__(self, pose_dim, N_J=17, N_a=2):
         super().__init__()
+        self.pose_dim = pose_dim
         self.N_J = N_J
         self.N_a = N_a
 
@@ -31,7 +32,7 @@ class Model(nn.Module):
         B = x.shape[0]
         mstem = EntryFlow()
         entry_input = mstem(x)        
-        pose = PoseEstimation(self.N_J, B=B)
+        pose = PoseEstimation(self.N_J, B=B, dim=self.pose_dim)
         visibility, prob_maps, joints = pose(entry_input)                        
         action_recognition = ActionRecognition(self.N_a, B=B)
         out = action_recognition(joints, entry_input, prob_maps)

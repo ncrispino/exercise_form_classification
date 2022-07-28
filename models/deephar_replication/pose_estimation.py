@@ -121,7 +121,10 @@ class PoseUpBlock(nn.Module):
         # Visibility is sigmoid applied to the sum of global max pooling 
         # on each of the heatmaps. See deephar/models/reception.py.        
         v_xy = torch.amax(heatmaps_xy, dim=(2, 3))
-        v_z = torch.amax(heatmaps_z, dim=2)
+        if self.dim == 2:
+            v_z = 0
+        else:
+            v_z = torch.amax(heatmaps_z, dim=2)
         visibility = self.sigmoid(v_xy + v_z).unsqueeze(-1)
         return visibility, prob_xy, joints, out
 
