@@ -1,5 +1,7 @@
 """Copied from config.py and edited to only contain data config, not model config.
 
+Used for data augmentation.
+
 https://github.com/dluvizon/deephar/blob/fbebb148a3b7153f911b86e1a7300aa32c336f31/deephar/config.py#L99
 
 """

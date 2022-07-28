@@ -11,8 +11,7 @@ import os
 from random import seed
 
 import numpy as np
-import scipy.io as sio
-import pandas as pd
+import torch
 from PIL import Image
 # import tensorlayer as tl
 from mpii_tensorlayer import load_mpii_pose_dataset # use customized function
@@ -22,7 +21,6 @@ sys.path.insert(0, '../../models')
 sys.path.insert(1, '../')
 from deephar_replication.deephar_utils import *
 
-from data_config import DataConfig
 from data_config import mpii_dataconf
 
 from torch.utils.data import Dataset
@@ -112,21 +110,28 @@ class Mpii(Dataset):
 
         The provided code has annot['pose'], which according to the 
         transform functions should have shape [N_joints, dim].
+
+        The images are augmented according to self.dataconf.
+
         I already edited the tensorlayer code so as to provide only the visible joints.
         If a joint is not visible according to the retrieved data, I set the respective coordinates to NaN.
 
         Note that this may differ from how the authors intended, 
         as I'm not entirely sure how their pose data was organized.
         In my version, I remove the non-visible joints from tensorlayer data
-        and also remove the joints according to the authors' method.                
+        and also remove the joints according to the authors' method.
+
+        Returns:
+            image: 3 x 256 x 256 input tensor
+            pose: N_joints x 3 tensor with last dimension a visibility flag
 
         """
         output = {}
 
         if self.mode == TRAIN_MODE:
-            dconf = self.dataconf.random_data_generator()
+            dconf = self.dataconf.random_data_generator() # For data augmentation.
         else:
-            dconf = self.dataconf.get_fixed_config()
+            dconf = self.dataconf.get_fixed_config() # Doesn't change data for validation/testing.
 
         imgt = self.load_image(idx)
         annot = self.ann_list[idx]
@@ -150,8 +155,8 @@ class Mpii(Dataset):
             imgt.horizontal_flip()
 
         imgt.normalize_affinemap()
-        output['frame'] = normalize_channels(imgt.asarray(),
-                channel_power=dconf['chpower'])
+        output['frame'] = torch.tensor(normalize_channels(imgt.asarray(),
+                channel_power=dconf['chpower'])).permute(2, 0, 1) # C x H x W
 
         p = np.empty((self.poselayout.num_joints, self.poselayout.dim))
         p[:] = np.nan
@@ -168,13 +173,19 @@ class Mpii(Dataset):
         if self.remove_outer_joints:
             p[(v==0)[:,0],:] = -1e9
 
-        output['pose'] = np.concatenate((p, v), axis=-1)
-        output['headsize'] = calc_head_size(annot['head_rect'])
-        output['afmat'] = imgt.afmat.copy()
+        output['pose'] = torch.tensor(np.concatenate((p, v), axis=-1))
+        output['headsize'] = torch.tensor(calc_head_size(annot['head_rect']))
+        output['afmat'] = torch.tensor(imgt.afmat.copy()) # Affine transformation, for rotation, flipping, etc.
 
-        return output
+        image = output['frame']
+        pose = output['pose']
+        return image, pose
+        # return output
 
 if __name__=='__main__':              
     mpii = Mpii(mode=TRAIN_MODE)
     print(len(mpii))
-    print(mpii[0])
+    frame, pose = mpii[0]
+    print(frame.shape, pose.shape)
+    print(frame)
+    print(pose)
