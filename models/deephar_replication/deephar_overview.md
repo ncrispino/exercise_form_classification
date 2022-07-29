@@ -22,7 +22,7 @@ Also, I need to set the number of actions, which in my case will be 2 (straight 
 - **check reshaping with T; see if there's a better way**
 - torch functional vs nn? Can I create new instances of cnns in forward functions?
 - should I write custom backwards functions if images only (x, y)?
--**initialize well**
+-**initialize well--I think Kaiming is auto for Linear & CNNs though, which is what I want as I'm using ReLU**
 -**overfit a single batch first**
 - fix imports in mpii_torch and training.py (right now, training.py runs but mpii_torch doesn't due to relative paths, I think)
 
