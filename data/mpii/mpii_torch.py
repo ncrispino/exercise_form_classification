@@ -121,8 +121,9 @@ class Mpii(Dataset):
         and also remove the joints according to the authors' method.
 
         Returns:
-            image: 3 x 256 x 256 input tensor
-            pose: N_joints x 3 tensor with last dimension a visibility flag
+            output dict containing:
+                frame: 3 x 256 x 256 input tensor
+                pose: N_joints x 3 tensor with last dimension a visibility flag
 
         """
         output = {}
@@ -155,7 +156,7 @@ class Mpii(Dataset):
 
         imgt.normalize_affinemap()
         output['frame'] = torch.tensor(normalize_channels(imgt.asarray(),
-                channel_power=dconf['chpower'])).permute(2, 0, 1) # C x H x W
+                channel_power=dconf['chpower']), dtype=torch.float32).permute(2, 0, 1) # C x H x W
 
         p = np.empty((self.poselayout.num_joints, self.poselayout.dim))
         p[:] = np.nan
@@ -172,13 +173,11 @@ class Mpii(Dataset):
         if self.remove_outer_joints:
             p[(v==0)[:,0],:] = -1e9
 
-        output['pose'] = torch.tensor(np.concatenate((p, v), axis=-1))
-        output['headsize'] = torch.tensor(calc_head_size(annot['head_rect']))
-        output['afmat'] = torch.tensor(imgt.afmat.copy()) # Affine transformation, for rotation, flipping, etc.
+        output['pose'] = torch.tensor(np.concatenate((p, v), axis=-1), dtype=torch.float32)
+        output['headsize'] = torch.tensor(calc_head_size(annot['head_rect']), dtype=torch.float32)
+        output['afmat'] = torch.tensor(imgt.afmat.copy(), dtype=torch.float32) # Affine transformation, for rotation, flipping, etc.
 
-        image = output['frame']
-        pose = output['pose']
-        return image, pose
+        return output
         # return output
 
 if __name__=='__main__':              
