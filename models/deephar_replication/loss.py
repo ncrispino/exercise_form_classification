@@ -5,47 +5,43 @@ import torch
 
 class ElasticNetLoss():
     """
-    
-    Args:
-        pose_pred: B x 4 x T x N_J tensor; estimated positions of each joint and visibility probability (4th dim)
-        pose_true: B x 4 x T x N_J tensor; ground truth positions of each joint and visibility flag (4th dim)
-    
-    Returns:
-        loss: B x T tensor; loss for each frame
 
+    Attributes:
+        visibility_weight: weight for visibility loss.
+    
     """
 
-    def __init__(self, include_bincross=True):
-        self.include_bincross = include_bincross
+    def __init__(self, visibility_weight=0.01):
+        self.visibility_weight = visibility_weight
 
     def __call__(self, pose_pred, pose_true):
-        # Non-visible and outer joints shouldn't be used in the loss. 
-        # In preprocessing, they are set as -1e9 if they are either.        
-        # idx = torch.nonzero(pose_true[:, :-1, :, :] > 0)
-        idx = pose_true > 0
-        # poses = pose_pred[idx]
-        poses = torch.where(idx, pose_pred, 0 * pose_pred)
-        print(poses.shape)
-        print(poses)        
-        N_J = idx.sum(-1)[:, :, 0]
-        print('Idx: ' + str(idx))       
-        print('N_J: ' + str(N_J))
-        # Calculate norm across joint coordinates and avg over them: 
-        # B x 3 x T x N_J -> B x T x N_J -> B x T.
-        if self.include_bincross:
-            bce_loss = torch.nn.BCELoss()            
-            bc = 0.01 * bce_loss(pose_pred[:, -1], pose_true[:, -1])
-            pose_diff = pose_pred[:, :-1] - pose_true[:, :-1]
-        else:
-            bc = 0
-            pose_diff = pose_pred - pose_true
+        """
+        Mostly copied from deephar/losses.py. Tf code easily converted to PyTorch.
 
-        # print(pose_pred)
-        # print(pose_true)
-        # # print(pose_diff) 
-        # print(pose_diff.abs().sum(axis=1))
-        # print((pose_diff**2).sum(axis=1))
-        loss_by_frame = torch.norm(pose_diff, dim=(1), p=1) + torch.norm(pose_diff, dim=(1), p=2)**2 + bc
-        # Zero out loss for non-visible and outer joints if applicable.
-        loss = (torch.where(idx, loss_by_frame, 0 * pose_pred)).sum()/N_J
-        return loss
+        Args:
+            pose_pred: B x dim + 1 x T x N_J tensor; estimated positions of each joint and visibility probability (last dim)
+            pose_true: B x dim + 1 x T x N_J tensor; ground truth positions of each joint and visibility flag (last dim)
+    
+        Returns:
+            loss: B x T tensor; loss for each frame
+
+        """
+        # Non-visible and outer joints shouldn't be used in the loss. 
+        # In preprocessing, they are set as -1e9 if they are either.
+        y_pred_vis = pose_pred[:, -1] 
+        y_true_vis = pose_true[:, -1] 
+        y_pred = pose_pred[:, :-1]
+        y_true = pose_true[:, :-1]
+        idx = (y_true > 0).float()
+        num_joints = torch.clip(torch.sum(idx, axis=(-1)), 1, None) # By batch and frame.    
+
+        l1 = torch.abs(y_pred - y_true)
+        l2 = torch.square(y_pred - y_true)
+        bce_loss = torch.nn.BCELoss()  
+        # Change BCE only uses visibility dimension.
+        bc = self.visibility_weight * bce_loss(y_pred_vis, y_true_vis)
+        dummy = 0. * y_pred        
+
+        loss = torch.sum(torch.where(idx.bool(), l1 + l2 + bc, dummy),
+                axis=(-1, -2)) / num_joints
+        return loss.mean() # Over batches and frames.
