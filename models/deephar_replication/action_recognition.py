@@ -93,7 +93,7 @@ class ActionBlock(nn.Module):
         # Padding should be equivalent to 'same' in tf -- done in forward as it's based on output.
         self.maxplusmin = MaxPlusMinPooling(2)
         self.conv4 = ConvBlock(dim, N_a, 3, padding='same')        
-        self.conv5 = ConvBlock(N_a, dim, 3, padding='same')
+        self.conv5 = ConvBlock(N_a, dim, 3, padding='same', include_batch_relu=False)
         # Input: N_a x H x W. output: N_a.
         self.global_maxplusmin = GlobalMaxPlusMinPooling()
         self.softmax = nn.Softmax(0)

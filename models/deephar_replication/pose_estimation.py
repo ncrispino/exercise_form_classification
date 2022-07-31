@@ -77,7 +77,7 @@ class PoseUpBlock(nn.Module):
         self.dim = dim
         self.sc = SCBlock(576, 576, 5)
         self.conv1 = ConvBlock(576, N_d * N_J, 1)
-        self.conv2 = ConvBlock(N_d * N_J, 576, 1)
+        self.conv2 = ConvBlock(N_d * N_J, 576, 1, include_batch_relu=False)
         self.softargmax_xy = SoftArgMax()
         self.softargmax_z = SoftArgMax()
         self.sigmoid = nn.Sigmoid()      
@@ -116,7 +116,7 @@ class PoseUpBlock(nn.Module):
             joints = torch.cat((joints_xy, joints_z), dim=2)            
 
         # After heatmaps for block output.
-        out2 = self.conv2(out2)
+        out2 = self.conv2(out2, bias=True) # No batch relu so bias true
         out = x + out1 + out2
 
         # Visibility is sigmoid applied to the sum of global max pooling 

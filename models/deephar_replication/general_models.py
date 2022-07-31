@@ -8,18 +8,20 @@ import torch
 from torch import nn
 
 class ConvBlock(nn.Module):
-    """Convolution with batch normalization followed by an relu."""
+    """Convolution with bias or with batch normalization followed by an relu.
+    """
 
-    def __init__(self, input_dim, output_dim, kernel_size, stride=1, padding=0):
+    def __init__(self, input_dim, output_dim, kernel_size, stride=1, padding=0, include_batch_relu=True):
         super().__init__()
+        self.include_batch_relu = include_batch_relu
         self.conv = nn.Conv2d(
             input_dim, output_dim, kernel_size=kernel_size, stride=stride, 
-            padding=padding, bias=False)
+            padding=padding, bias=(not include_batch_relu))
         self.batch_norm = nn.BatchNorm2d(output_dim)
         self.relu = nn.ReLU()
 
     def forward(self, x):
-        return self.relu(self.batch_norm(self.conv(x)))
+        return self.relu(self.batch_norm(self.conv(x))) if self.include_batch_relu else self.conv(x)
 
 class SCBlock(nn.Module):
     """Depth-wise separable convolution.
@@ -38,13 +40,14 @@ class SCBlock(nn.Module):
         self.n_in = n_in
         self.n_out = n_out     
         self.include_batch_relu = include_batch_relu 
+        bias = not include_batch_relu
         # Use n_in separate kernels of dim 1 x kernel_size x kernel_size, 
         # each for one channel.        
         self.depthwise_conv = nn.Conv2d(
-            n_in, n_in, kernel_size=s, groups=n_in, padding='same', bias=False
+            n_in, n_in, kernel_size=s, groups=n_in, padding='same', bias=bias
             )
         # Use a 1x1 conv (pointwise conv) to increase output dim
-        self.pointwise_conv = nn.Conv2d(n_in, n_out, kernel_size=1, bias=False)
+        self.pointwise_conv = nn.Conv2d(n_in, n_out, kernel_size=1, bias=bias)
         self.batch_norm = nn.BatchNorm2d(n_out)
         self.relu = nn.ReLU()
     
@@ -79,7 +82,8 @@ class SRBlock(nn.Module):
         self.n_in = n_in
         self.n_out = n_out     
         self.include_batch_relu = include_batch_relu   
-        self.conv = nn.Conv2d(n_in, n_out, kernel_size=1, bias=False)
+        bias = not include_batch_relu
+        self.conv = nn.Conv2d(n_in, n_out, kernel_size=1, bias=bias)
         self.sc = SCBlock(n_in, n_out, s, include_batch_relu=True)
         self.batch_norm = nn.BatchNorm2d(n_out)
         self.relu = nn.ReLU()
