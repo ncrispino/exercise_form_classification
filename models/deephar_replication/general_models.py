@@ -7,11 +7,13 @@ batch norm.
 import torch
 from torch import nn
 
+batch_relu = True # False for debugging.
+
 class ConvBlock(nn.Module):
     """Convolution with bias or with batch normalization followed by an relu.
     """
 
-    def __init__(self, input_dim, output_dim, kernel_size, stride=1, padding=0, include_batch_relu=True):
+    def __init__(self, input_dim, output_dim, kernel_size, stride=1, padding=0, include_batch_relu=batch_relu):
         super().__init__()
         self.include_batch_relu = include_batch_relu
         self.conv = nn.Conv2d(
@@ -35,7 +37,7 @@ class SCBlock(nn.Module):
 
     """
 
-    def __init__(self, n_in, n_out, s, include_batch_relu=True):
+    def __init__(self, n_in, n_out, s, include_batch_relu=batch_relu):
         super().__init__()
         self.n_in = n_in
         self.n_out = n_out     
@@ -74,7 +76,7 @@ class SRBlock(nn.Module):
         include_batch_relu: whether to include batch normalization and 
             relu after the convolutions before adding residual connection.
             (Default is False because I don't think this is really done.)
-.
+
     """
 
     def __init__(self, n_in, n_out, s, include_batch_relu=False):
@@ -84,7 +86,7 @@ class SRBlock(nn.Module):
         self.include_batch_relu = include_batch_relu   
         bias = not include_batch_relu
         self.conv = nn.Conv2d(n_in, n_out, kernel_size=1, bias=bias)
-        self.sc = SCBlock(n_in, n_out, s, include_batch_relu=True)
+        self.sc = SCBlock(n_in, n_out, s, include_batch_relu=batch_relu)
         self.batch_norm = nn.BatchNorm2d(n_out)
         self.relu = nn.ReLU()
     
