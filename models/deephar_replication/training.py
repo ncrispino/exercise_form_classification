@@ -29,12 +29,16 @@ from pose_estimation import PoseEstimation
 import wandb
 wandb.init(project='deephar_replication') #, mode='disabled')
 wandb.config.update({    
-    'lr': 1e-3,
+    'lr': 3e-4,
     'num_epochs': 100,
     'dataset': 'mpii', 
     'batch_size': 24, # Set batch size to 24 on GPU, as in paper.
     'pose_blocks': 1,
 })
+
+# GPUs
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+wandb.log({'device': device})
 
 # From parser.py
 TEST_MODE = 0 # TODO: Change dataloader to work with test (no annotations I think)
@@ -52,6 +56,7 @@ pose_model = nn.Sequential(
     EntryFlow(),
     PoseEstimation(16, wandb.config.batch_size, pose_dim, K=wandb.config.pose_blocks)
 )
+pose_model.to(device)
 
 # For summary table of params:
 # from torchinfo import summary
@@ -63,8 +68,8 @@ def joint_training(model, loss_fn, optimizer, num_epochs, train_loader):
     for epoch in range(1, num_epochs + 1):
         loss_train = 0.0
         for output in train_loader:
-            imgs = output['frame']            
-            joint_vis_true = output['pose'].permute(0, 2, 1).unsqueeze(2) # B x T x N_J x pose_dim + 1 with visibility concat to end            
+            imgs = output['frame'].to(device)           
+            joint_vis_true = output['pose'].permute(0, 2, 1).unsqueeze(2).to(device) # B x T x N_J x pose_dim + 1 with visibility concat to end            
             imgs = imgs.unsqueeze(1) # add T=1 channel
             visibility, _, joints = model(imgs) # B x 3 x T x N_J -- third channel should be zero here as I'm doing 2D?
             joint_vis_pred = torch.concat([joints, visibility], dim=1) 
