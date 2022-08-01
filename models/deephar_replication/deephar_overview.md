@@ -16,14 +16,12 @@ Also, I need to set the number of actions, which in my case will be 2 (straight 
 
 ### To-do
 - can I train with a different number of timesteps, i.e., with a video of 5 timesteps and a video of 10 timesteps?
-- investigate relus and batch norm (see below)
 - check params of model and compare with the paper's (visualize)
-- **get rid of biases with batch norm**
 - **check reshaping with T; see if there's a better way**
 - torch functional vs nn? Can I create new instances of cnns in forward functions?
-- should I write custom backwards functions if images only (x, y)?
 -**initialize well--I think Kaiming is auto for Linear & CNNs though, which is what I want as I'm using ReLU**
 -**overfit a single batch first**
+- build sweeps for visibility weight? learning rate?
 - fix imports in mpii_torch and training.py (right now, training.py runs but mpii_torch doesn't due to relative paths, I think)
 
 ### Model Changes
@@ -42,11 +40,16 @@ Also, I need to set the number of actions, which in my case will be 2 (straight 
 - For categorical cross-entropy loss, I'll change the output of the neural network to use log softmax instead of softmax, then use NLLLoss. This should be [equivalent to cross-entropy loss and allow the probabilities to be easily recovered](https://stackoverflow.com/questions/65192475/pytorch-logsoftmax-vs-softmax-for-crossentropyloss).
 
 ### Training Timeline
-- Set up and ran with weights and biases trying to overfit a single batch where batch_size=2; loss very large (on the scale of 1e18) and not changing at all.
+1. Set up and ran with weights and biases trying to overfit a single batch where batch_size=2; loss very large (on the scale of 1e18) and not changing at all.
     - The problem is that -1e9 flag for non-visible and outer joints from preprocessing was not taken into account by the loss function.
-- Changed the loss function to be identical the authors' tf one, but then getting loss to be NaN.
-- Now, getting loss to be continuously decreasing (huge negative numbers)
+1. Changed the loss function to be identical the authors' tf one, but then getting loss to be NaN.
+1. Now, getting loss to be continuously decreasing (huge negative numbers)
     - I changed the loss so it's just elastic net loss and bce only done on visibility weights.
+1. Working now, but not able to overfit one batch of 2. Still getting loss of around 0.03.
+    - Changed to Adam and 3e-4.
+1. Wasn't summing up loss, just keeping track of it on each batch.
+1. Loss didn't work when batch size changed to 8; realized I was calculating it over batch and dimension, not batch and time.
+1. Changed batch size back to 2, then tried to remove batch relu for testing
 
 ### Misc
 I didn't find any PyTorch implementations on [paperswithcode.com](https://paperswithcode.com/paper/2d3d-pose-estimation-and-action-recognition), though it says there is one. So, this will be somewhat novel for that reason (though I'm sure an implementation in PyTorch does exist).

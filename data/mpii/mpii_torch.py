@@ -5,6 +5,8 @@ Had to change the loading process as the Matlab file wasn't exactly the same.
 Instead, I use a function from the tensorlayer library
 with slight modifications so as to have all the necessary data.
 
+Note that this file can't be run individually anymore; needs to be run through training.py.
+
 """
 
 import os
@@ -166,12 +168,12 @@ class Mpii(Dataset):
                 transform_2d_points(imgt.afmat, annot['pose'], transpose=True)
         if imgt.hflip:
             p = p[self.poselayout.map_hflip, :]
-
+        
         # Set invalid joints and NaN values as an invalid value
         p[np.isnan(p)] = -1e9
         v = np.expand_dims(get_visible_joints(p[:,0:2]), axis=-1)
         if self.remove_outer_joints:
-            p[(v==0)[:,0],:] = -1e9
+            p[(v==0)[:,0],:] = -1e9        
 
         output['pose'] = torch.tensor(np.concatenate((p, v), axis=-1), dtype=torch.float32)
         output['headsize'] = torch.tensor(calc_head_size(annot['head_rect']), dtype=torch.float32)
@@ -182,8 +184,8 @@ class Mpii(Dataset):
 
 if __name__=='__main__':              
     mpii = Mpii(mode=TRAIN_MODE)
-    print(len(mpii))
-    frame, pose = mpii[0]
-    print(frame.shape, pose.shape)
-    print(frame)
-    print(pose)
+    # print(len(mpii))
+    output = mpii[0]
+    # print(frame.shape, pose.shape)
+    # print(frame)
+    # print(pose)
