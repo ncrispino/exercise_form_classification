@@ -28,6 +28,13 @@ from pose_estimation import PoseEstimation
 
 import wandb
 wandb.init(project='deephar_replication') #, mode='disabled')
+wandb.config.update({    
+    'lr': 1e-3,
+    'num_epochs': 100,
+    'dataset': 'mpii', 
+    'batch_size': 24, # Set batch size to 24 on GPU, as in paper.
+    'pose_blocks': 1,
+})
 
 # From parser.py
 TEST_MODE = 0 # TODO: Change dataloader to work with test (no annotations I think)
@@ -36,22 +43,23 @@ VAL_MODE = 2
 
 mpii_train = Mpii(mode=TRAIN_MODE, dataset_path='../../data/mpii/data/')
 
-# Set batch size to 24 on GPU, as in paper.
-batch_size = 2 #24
-train_dataloader = DataLoader(mpii_train, batch_size=batch_size, shuffle=True)
+train_dataloader = DataLoader(mpii_train, batch_size=wandb.config.batch_size, shuffle=True)
 
 N_J = 16
 pose_dim = 2
 
 pose_model = nn.Sequential(
     EntryFlow(),
-    PoseEstimation(16, batch_size, pose_dim)
+    PoseEstimation(16, wandb.config.batch_size, pose_dim, K=wandb.config.pose_blocks)
 )
+
+# For summary table of params:
+# from torchinfo import summary
+# summary(pose_model, input_size=(batch_size, 1, 3, 256, 256))
 
 def joint_training(model, loss_fn, optimizer, num_epochs, train_loader):
     model.train()
-    wandb.watch(model, log_freq=1, log='all')    
-    num_images = 0
+    # wandb.watch(model, log_freq=1, log='all')        
     for epoch in range(1, num_epochs + 1):
         loss_train = 0.0
         for output in train_loader:
@@ -68,7 +76,8 @@ def joint_training(model, loss_fn, optimizer, num_epochs, train_loader):
 
             loss_train += loss.item()
 
-            wandb.log({'images': [wandb.Image(im) for im in imgs], 'epoch': epoch, 'loss': loss.item()})
+            wandb.log({'images': [wandb.Image(im) for im in imgs], 'epoch': epoch, 'loss': loss.item(), 
+            'joint_vis_pred': joint_vis_pred, 'joint_vis_true': joint_vis_true})
 
         wandb.log({'loss_train': loss_train/len(train_loader)})
 
@@ -76,11 +85,6 @@ def joint_training(model, loss_fn, optimizer, num_epochs, train_loader):
 
 # Overfit one batch (starting with batch_size=2 as 20 is too much to handle for my CPU)
 one_batch = [next(iter(train_dataloader))] # Make list so it can be iterated over.
-wandb.config.update({    
-    'lr': 3e-4,
-    'num_epochs': 100,
-    'dataset': 'mpii',    
-})
 
 loss_fn = ElasticNetLoss()
 optimizer = optim.Adam(pose_model.parameters(), lr=wandb.config.lr)
