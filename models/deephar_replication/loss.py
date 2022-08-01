@@ -41,8 +41,7 @@ class ElasticNetLoss():
         # Change BCE only uses visibility dimension.
         bc = self.visibility_weight * bce_loss(y_pred_vis, y_true_vis)
         dummy = 0. * y_pred        
-
-        print(idx.shape, (l1 + l2 + bc).shape, dummy.shape, num_joints.shape)
+        
         loss = torch.sum(torch.where(idx.bool(), l1 + l2 + bc, dummy),
                 axis=(-1, -3)) / num_joints
         return loss.mean() # Over batches and frames.
