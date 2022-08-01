@@ -151,7 +151,7 @@ class ActionCombined(nn.Module):
         self.K = K
         self.B = B
         self.action_start = ActionStart(pose_rec, pose_dim)
-        self.action_blocks = [ActionBlock(pose_rec=pose_rec, N_a=self.N_a) for i in range(K)]        
+        self.action_blocks = nn.ModuleList([ActionBlock(pose_rec=pose_rec, N_a=self.N_a) for i in range(K)])
     
     def forward(self, x):
         """

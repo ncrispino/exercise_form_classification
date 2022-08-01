@@ -168,7 +168,7 @@ class PoseEstimation(nn.Module):
         self.B = B
         self.dim = dim
         self.N_d = N_d
-        self.prediction_blocks = [PoseBlock(N_J, N_d, dim) for i in range(K)]        
+        self.prediction_blocks = nn.ModuleList([PoseBlock(N_J, N_d, dim) for i in range(K)])
     
     def forward(self, x): 
         """
