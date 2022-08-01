@@ -31,9 +31,9 @@ class ElasticNetLoss():
         y_pred_vis = pose_pred[:, -1] 
         y_true_vis = pose_true[:, -1] 
         y_pred = pose_pred[:, :-1]
-        y_true = pose_true[:, :-1]
+        y_true = pose_true[:, :-1]        
         idx = (y_true > 0).float()
-        num_joints = torch.clip(torch.sum(idx, axis=(-1)), 1, None) # By batch and frame.    
+        num_joints = torch.clip(torch.sum(idx, axis=(-1, -3)), 1, None) # By batch and frame.    
 
         l1 = torch.abs(y_pred - y_true)
         l2 = torch.square(y_pred - y_true)
@@ -42,6 +42,7 @@ class ElasticNetLoss():
         bc = self.visibility_weight * bce_loss(y_pred_vis, y_true_vis)
         dummy = 0. * y_pred        
 
+        print(idx.shape, (l1 + l2 + bc).shape, dummy.shape, num_joints.shape)
         loss = torch.sum(torch.where(idx.bool(), l1 + l2 + bc, dummy),
-                axis=(-1, -2)) / num_joints
+                axis=(-1, -3)) / num_joints
         return loss.mean() # Over batches and frames.
