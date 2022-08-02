@@ -181,7 +181,7 @@ class PoseEstimation(nn.Module):
 
             B x N_J x H x W probability maps obtained from the Kth block.
 
-            B x 3 x T x N_J location of all joints from the Kth block.
+            K x B x 3 x T x N_J location of all joints.
 
             Note: Does not return B x 576 x 32 x 32 output tensor from the 
             Kth block, as it's not used in action recognition.
@@ -189,6 +189,9 @@ class PoseEstimation(nn.Module):
         """ 
 
         out = x
+        joints_by_block = []
         for block in self.prediction_blocks:
-            visibility, prob_maps, joints, out = block(out)            
-        return visibility.view(self.B, 1, -1, joints.shape[1]), prob_maps, joints.view(self.B, joints.shape[2], -1, joints.shape[1])
+            visibility, prob_maps, joints, out = block(out) 
+            joints_by_block.append(joints.view(self.B, joints.shape[2], -1, joints.shape[1])) 
+        all_joints = torch.stack(joints_by_block, dim=0) # Adds new dimension.         
+        return visibility.view(self.B, 1, -1, joints.shape[1]), prob_maps, all_joints
