@@ -13,6 +13,8 @@ Add some visualizations to see if it's working.
 """
 
 import sys
+
+from models.deephar_replication.exp.common.mpii_tools import eval_singleperson_pckh
 sys.path.insert(0, '../../')
 from data.data_config import mpii_dataconf
 from data.mpii.mpii_tensorlayer import load_mpii_pose_dataset
@@ -46,8 +48,10 @@ TRAIN_MODE = 1
 VAL_MODE = 2
 
 mpii_train = Mpii(mode=TRAIN_MODE, dataset_path='../../data/mpii/data/')
+mpii_val = Mpii(mode=VAL_MODE, dataset_path='../../data/mpii/data/')
 
 train_dataloader = DataLoader(mpii_train, batch_size=wandb.config.batch_size, shuffle=True)
+val_dataloader = DataLoader(mpii_val, batch_size=wandb.config.batch_size, shuffle=True)
 
 N_J = 16
 pose_dim = 2
@@ -62,7 +66,7 @@ pose_model.to(device)
 # from torchinfo import summary
 # summary(pose_model, input_size=(batch_size, 1, 3, 256, 256))
 
-def joint_training(model, loss_fn, optimizer, num_epochs, train_loader):
+def joint_training(model, loss_fn, optimizer, num_epochs, train_loader, val_loader):
     model.train()
     # wandb.watch(model, log_freq=1, log='all')        
     for epoch in range(1, num_epochs + 1):
@@ -71,8 +75,8 @@ def joint_training(model, loss_fn, optimizer, num_epochs, train_loader):
             imgs = output['frame'].to(device)           
             joint_vis_true = output['pose'].permute(0, 2, 1).unsqueeze(2).to(device) # B x T x N_J x pose_dim + 1 with visibility concat to end            
             imgs = imgs.unsqueeze(1) # add T=1 channel
-            visibility, _, joints = model(imgs) # B x 3 x T x N_J -- third channel should be zero here as I'm doing 2D?
-            joint_vis_pred = torch.concat([joints, visibility], dim=1) 
+            visibility, _, joints = model(imgs)
+            joint_vis_pred = torch.concat([joints, visibility], dim=1) # B x 3 x T x N_J
             loss = loss_fn(joint_vis_pred, joint_vis_true)            
 
             optimizer.zero_grad()
@@ -86,7 +90,19 @@ def joint_training(model, loss_fn, optimizer, num_epochs, train_loader):
 
         wandb.log({'loss_train': loss_train/len(train_loader)})
 
-# def joint_validate(model, val_loader):
+        # Validation
+        with torch.no_grad():
+            model.eval()
+            for output in val_loader:
+                imgs = output['frame'].to(device).unsqueeze(1)
+                joint_vis_true  = output['pose'].permute(0, 2, 1).unsqueeze(2).to(device) 
+                afmat  = output['afmat'].to(device)
+                head_size  = output['head_size'].to(device) 
+                visibility , _, joints  = model(imgs)
+                joint_vis_pred  = torch.concat([joints, visibility], dim=1)
+                val_loss = loss_fn(joint_vis_pred, joint_vis_true)
+                pckh_measure = eval_singleperson_pckh(...) # Edit function to take inputs I already have reshape T dim before passing to eval_singleperson_pckh.              
+                wandb.log({'val_loss': val_loss.item()})
 
 # Overfit one batch (starting with batch_size=2 as 20 is too much to handle for my CPU)
 one_batch = [next(iter(train_dataloader))] # Make list so it can be iterated over.
