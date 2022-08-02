@@ -35,5 +35,5 @@ class Model(nn.Module):
         pose = PoseEstimation(self.N_J, B=B, dim=self.pose_dim)
         visibility, prob_maps, all_joints = pose(entry_input) # NOTE: joints will be 2 dim if pose_dim=2                        
         action_recognition = ActionRecognition(self.N_a, B=B)
-        out = action_recognition(all_joints[-1], entry_input, prob_maps)
+        out = action_recognition(all_joints[-1], entry_input, prob_maps) # Last joint
         return out

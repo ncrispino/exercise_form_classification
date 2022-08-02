@@ -139,7 +139,7 @@ class SoftArgMax(nn.Module):
     """            
 
     def forward(self, x, apply_softmax=True):  
-        device = x.get_device()      
+        device = x.device
         dim1 = False
         if len(x.shape) == 3: # adds dimension to end if 1D
             dim1 = True
