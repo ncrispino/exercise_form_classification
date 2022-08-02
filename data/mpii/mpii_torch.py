@@ -78,7 +78,7 @@ class Mpii(Dataset):
         elif mode == TRAIN_MODE:
             self.img_list = img_train_list[train_idxs]
             self.ann_list = ann_train_list[train_idxs]
-        elif mode == VAL_MODE:
+        elif mode == VALID_MODE:
             self.img_list = img_train_list[val_idxs]
             self.ann_list = ann_train_list[val_idxs] 
         # Split ann_list into single person annotations. 
