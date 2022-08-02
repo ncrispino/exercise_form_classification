@@ -136,10 +136,10 @@ class SoftArgMax(nn.Module):
     Returns:
         B x C x 2 tensor if 2D, B x C x 1 tensor if 1D.  
 
-    """
+    """            
 
-    def forward(self, x, apply_softmax=True):
-        super().__init__()
+    def forward(self, x, apply_softmax=True):  
+        device = x.get_device()      
         dim1 = False
         if len(x.shape) == 3: # adds dimension to end if 1D
             dim1 = True
@@ -154,9 +154,9 @@ class SoftArgMax(nn.Module):
         height_values = torch.arange(0, H).unsqueeze(1)
         width_values = torch.arange(0, W).unsqueeze(0)
         # Each row has row idx/num rows.
-        height_tensor = torch.tile(height_values, (1, W))/(H - 1)
+        height_tensor = (torch.tile(height_values, (1, W))/(H - 1)).to(device)
         # Each col has col idx/num cols.
-        width_tensor = torch.tile(width_values, (H, 1))/(W - 1)
+        width_tensor = (torch.tile(width_values, (H, 1))/(W - 1)).to(device)
 
         # Multiply prob maps times weight tensors and sum over H x W.        
         height_out = (x_prob * height_tensor).sum((2, 3))
