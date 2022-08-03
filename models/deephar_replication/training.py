@@ -78,8 +78,8 @@ def joint_training(model, loss_fn, optimizer, num_epochs, train_loader, val_load
             joints = all_joints[-1] # Last block.
             joint_vis_pred = torch.concat([joints, visibility], dim=1) # B x 3 x T x N_J
             loss = loss_fn(joint_vis_pred, joint_vis_true) 
-            print('training')      
-            print(joint_vis_pred[:, :-1], joint_vis_true[:, :-1])     
+            # print('training')      
+            # print(joint_vis_pred[:, :-1], joint_vis_true[:, :-1])     
 
             optimizer.zero_grad()
             loss.backward()
@@ -109,7 +109,7 @@ def joint_training(model, loss_fn, optimizer, num_epochs, train_loader, val_load
                 loss_val += loss.item()
                 # print(f'afmat: {afmat.shape}')
                 # Don't pass visibility information.
-                print('eval')
+                # print('eval')
                 # print(all_joints, joints_true)
                 pckh_scores = eval_singleperson_pckh(
                     all_joints, joints_true, afmat_val=afmat, 

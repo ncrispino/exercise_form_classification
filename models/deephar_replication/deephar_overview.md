@@ -55,7 +55,7 @@ Also, I need to set the number of actions, which in my case will be 2 (straight 
 1. Moved to gpu to train faster. Got errors because I didn't use nn.ModuleList and softmax used tensors I created that were implicitly on gpu
 1. Using colab notebook where I do a git pull; gpu is way faster, so trying more epochs, more pose blocks, different learning rates, etc.
 1. Trying to implement validation; had to copy some numpy utility/measurement/etc. files from official repo.
-    - Problem is that after applying affine transformation, norm is too large relative to refp (reference point with respect to head size)
+    - Problem is that after applying affine transformation, norm is too large relative to refp (reference point with respect to head size). This is maybe due to y_pred not being optimized for this?
 
 ### Misc
 I didn't find any PyTorch implementations on [paperswithcode.com](https://paperswithcode.com/paper/2d3d-pose-estimation-and-action-recognition), though it says there is one. So, this will be somewhat novel for that reason (though I'm sure an implementation in PyTorch does exist).

@@ -89,12 +89,12 @@ def pckh(y_true, y_pred, head_size, refp=0.5):
         dist[i,:] = _norm(y_true[i] - y_pred[i], axis=1) / head_size[i]
     match = (dist <= refp) * valid    
 
-    print(f'y_pred: {y_pred}')
-    print(f'y_true: {y_true}')
-    print(f'dist: {dist}')
-    print(f'valid: {valid}')
-    print(f'match: {match}')
-    print(f'dist < 0.5: {dist < 0.5}')
+    # print(f'y_pred: {y_pred}')
+    # print(f'y_true: {y_true}')
+    # print(f'dist: {dist}')
+    # print(f'valid: {valid}')
+    # print(f'match: {match}')
+    # print(f'dist < 0.5: {dist < 0.5}')
 
     return match.sum() / valid.sum()
 
