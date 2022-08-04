@@ -49,8 +49,8 @@ VALID_MODE = 2
 mpii_train = Mpii(mode=TRAIN_MODE, dataset_path='../../data/mpii/data/')
 mpii_val = Mpii(mode=VALID_MODE, dataset_path='../../data/mpii/data/')
 
-train_dataloader = DataLoader(mpii_train, batch_size=wandb.config.batch_size, shuffle=True)
-val_dataloader = DataLoader(mpii_val, batch_size=wandb.config.batch_size, shuffle=True)
+train_dataloader = DataLoader(mpii_train, batch_size=wandb.config.batch_size, shuffle=True, drop_last=True)
+val_dataloader = DataLoader(mpii_val, batch_size=wandb.config.batch_size, shuffle=True, drop_last=True)
 
 N_J = 16
 pose_dim = 2
