@@ -113,7 +113,7 @@ def joint_validation(model, loss_fn, val_loader, epoch=-1):
         epoch: Epoch number. If not applicable, will log -1.
 
     Returns:
-        top_score: Top score on validation set.        
+        top_score: Top score on validation set. Takes average of pckh scores.        
     
     """
     model.eval()
@@ -136,11 +136,12 @@ def joint_validation(model, loss_fn, val_loader, epoch=-1):
                 num_blocks=wandb.config.pose_blocks, verbose=1)         
             # Scores is a list; pick max. TODO: change for multiple batches?
             top_pckh_epoch = max(pckh_scores_epoch)
-            top_pckh = top_pckh_epoch if top_pckh_epoch > top_pckh else top_pckh
+            # top_pckh = top_pckh_epoch if top_pckh_epoch > top_pckh else top_pckh
+            top_pckh += top_pckh_epoch
             # Note I'm only logging the last list of scores.
             wandb.log({'val_loss_batch': loss.item(), 'pckh_scores_per_epoch': pckh_scores_epoch, 'top_pckh_per_epoch': top_pckh_epoch})                        
         wandb.log({'loss_val': loss_val/len(val_loader), 'epoch': epoch})  
-    return top_pckh
+    return top_pckh/len(val_loader)
 
 # Overfit one batch (starting with batch_size=2 as 20 is too much to handle for my CPU)
 one_batch_train = [next(iter(train_dataloader))] # Make list so it can be iterated over.
