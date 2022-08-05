@@ -68,9 +68,9 @@ def eval_singleperson_pckh(pred, pval, afmat_val, headsize_val,
     pred = pred.view(pred.shape[0], -1, pred.shape[4], pred.shape[2]) # K x B x dim x T x N_J -> K x B * T x N_J x dim    
     y_true = y_true.contiguous().view(-1, y_true.shape[3], y_true.shape[1]) # B x dim x T x N_J -> B * T x N_J x dim    
     
-    # print(f'prev ytrue: {y_true}')
-    y_true = transform_pose_sequence(A.numpy(), y_true, inverse=True)
-    # print(f'new ytrue: {y_true}')
+    # print(f'prev ytrue: {y_true.shape}')
+    y_true = transform_pose_sequence(A.numpy(), y_true.cpu(), inverse=True)
+    # print(f'new ytrue: {y_true.shape}')
 
     if map_to_pa16j is not None:
         y_true = y_true[:, map_to_pa16j, :]
@@ -88,8 +88,8 @@ def eval_singleperson_pckh(pred, pval, afmat_val, headsize_val,
 
         if map_to_pa16j is not None:
             y_pred = y_pred[:, map_to_pa16j, :]
-        # print(f'prev ypred: {y_pred}')        
-        y_pred = transform_pose_sequence(A.numpy(), y_pred, inverse=True)
+        # print(f'prev ypred: {y_pred.shape}')        
+        y_pred = transform_pose_sequence(A.numpy(), y_pred.cpu(), inverse=True)
         # print(f'new ypred: {y_pred}')
         s = pckh(y_true, y_pred, headsize_val, refp=refp)
         if verbose:
