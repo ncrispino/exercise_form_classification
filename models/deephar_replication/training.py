@@ -34,8 +34,8 @@ wandb.config.update({
     'lr': 3e-4,
     'num_epochs': 100,
     'dataset': 'mpii', 
-    'batch_size': 2, # Set batch size to 24 on GPU, as in paper.
-    'pose_blocks': 1,
+    'batch_size': 4, # Set batch size to 24 on GPU, as in paper.
+    'pose_blocks': 4,
 })
 
 # GPUs
@@ -87,8 +87,8 @@ def joint_training(model, loss_fn, optimizer, num_epochs, train_loader, val_load
 
             loss_train += loss.item()
 
-            wandb.log({'images': [wandb.Image(im) for im in imgs], 'epoch': epoch, 'train_loss_batch': loss.item(), 
-            'joint_vis_pred': joint_vis_pred, 'joint_vis_true': joint_vis_true})
+            wandb.log({'images': [wandb.Image(im) for im in imgs], 'epoch': epoch, 'train_loss_batch': loss.item()}) 
+          #  'joint_vis_pred': joint_vis_pred, 'joint_vis_true': joint_vis_true})
 
         wandb.log({'loss_train': loss_train/len(train_loader)})
 
@@ -100,8 +100,8 @@ def joint_training(model, loss_fn, optimizer, num_epochs, train_loader, val_load
                 imgs = output['frame'].to(device).unsqueeze(1)
                 joint_vis_true  = output['pose'].permute(0, 2, 1).unsqueeze(2).to(device)                 
                 joints_true = joint_vis_true[:, :-1, :, :]                
-                afmat  = output['afmat'].to(device)
-                headsize  = output['headsize'].to(device) 
+                afmat  = output['afmat'] #.to(device)
+                headsize  = output['headsize'] #.to(device) 
                 # print(f'headsize: {headsize.shape}')
                 visibility , _, all_joints  = model(imgs)
                 joint_vis_pred  = torch.concat([all_joints[-1], visibility], dim=1)
@@ -129,4 +129,4 @@ one_batch_val = [next(iter(val_dataloader))]
 loss_fn = ElasticNetLoss()
 optimizer = optim.Adam(pose_model.parameters(), lr=wandb.config.lr)
 
-joint_training(pose_model, loss_fn, optimizer, num_epochs=wandb.config.num_epochs, train_loader=one_batch_train, val_loader=one_batch_val)
+joint_training(pose_model, loss_fn, optimizer, num_epochs=wandb.config.num_epochs, train_loader=one_batch_val, val_loader=one_batch_val)
