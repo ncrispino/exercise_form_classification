@@ -69,7 +69,7 @@ def joint_training(model, loss_fn, optimizer, num_epochs, train_loader, val_load
     # For validation
     top_score = 0.0
     top_epoch = 0
-    best_model = model
+    best_model_state_dict = model.state_dict()
     # Training:
     model.train()
     # wandb.watch(model, log_freq=1, log='all')        
@@ -101,7 +101,7 @@ def joint_training(model, loss_fn, optimizer, num_epochs, train_loader, val_load
             top_score = curr_score
             top_epoch = epoch
             best_model_state_dict = model.state_dict()
-    wandb.log({'top_score_overall': top_score, 'top_epoch': top_epoch})
+    wandb.log({'top_pckh_overall': top_score, 'top_epoch': top_epoch})
 
     # Save model with best validation score.
     torch.save(best_model_state_dict, 'mpii_pose_only.pth')
@@ -116,9 +116,10 @@ def joint_validation(model, loss_fn, val_loader, epoch=-1):
         top_score: Top score on validation set.        
     
     """
-    with torch.no_grad():
-        model.eval()
-        loss_val = 0.0               
+    model.eval()
+    loss_val = 0.0  
+    top_pckh = 0.0  
+    with torch.no_grad():           
         for output in val_loader:
             imgs = output['frame'].to(device).unsqueeze(1)
             joint_vis_true  = output['pose'].permute(0, 2, 1).unsqueeze(2).to(device)                 
@@ -129,13 +130,15 @@ def joint_validation(model, loss_fn, val_loader, epoch=-1):
             joint_vis_pred  = torch.concat([all_joints[-1], visibility], dim=1)
             loss = loss_fn(joint_vis_pred, joint_vis_true)
             loss_val += loss.item()
-            pckh_scores = eval_singleperson_pckh(
+            pckh_scores_epoch = eval_singleperson_pckh(
                 all_joints, joints_true, afmat_val=afmat, 
                 headsize_val=headsize, batch_size=wandb.config.batch_size, 
                 num_blocks=wandb.config.pose_blocks, verbose=1)         
-            # Scores is a list; pick max.
-            top_pckh = max(pckh_scores)
-            wandb.log({'val_loss_batch': loss.item(), 'pckh_scores_per_epoch': pckh_scores, 'top_pckh_per_epoch': top_pckh})                        
+            # Scores is a list; pick max. TODO: change for multiple batches?
+            top_pckh_epoch = max(pckh_scores_epoch)
+            top_pckh = top_pckh_epoch if top_pckh_epoch > top_pckh else top_pckh
+            # Note I'm only logging the last list of scores.
+            wandb.log({'val_loss_batch': loss.item(), 'pckh_scores_per_epoch': pckh_scores_epoch, 'top_pckh_per_epoch': top_pckh_epoch})                        
         wandb.log({'loss_val': loss_val/len(val_loader), 'epoch': epoch})  
     return top_pckh
 
@@ -152,13 +155,13 @@ joint_training(pose_model, loss_fn, optimizer, num_epochs=wandb.config.num_epoch
 artifact = wandb.Artifact('mpii_only_model', type='model')
 artifact.add_file('mpii_pose_only.pth')
 run.log_artifact(artifact)
+run.finish()
+
+# Check model saved correctly
 # pose_model_saved = nn.Sequential(
 #     EntryFlow(),
 #     PoseEstimation(16, wandb.config.batch_size, pose_dim, K=wandb.config.pose_blocks)
 # )
-run.finish()
-
-# Check model saved correctly
 # pose_model_saved.to(device)
 # model = pose_model_saved
 # model.load_state_dict(torch.load('mpii_pose_only.pth'))
