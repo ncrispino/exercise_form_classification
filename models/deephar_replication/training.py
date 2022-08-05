@@ -29,12 +29,12 @@ from pose_estimation import PoseEstimation
 from exp.common.mpii_tools import eval_singleperson_pckh
 
 import wandb
-wandb.init(project='deephar_replication', mode='disabled')
+run = wandb.init(project='deephar_replication') #, mode='disabled')
 wandb.config.update({    
     'lr': 3e-4,
     'num_epochs': 100,
     'dataset': 'mpii', 
-    'batch_size': 4, # Set batch size to 24 on GPU, as in paper.
+    'batch_size': 24, # Set batch size to 24 on GPU, as in paper.
     'pose_blocks': 4,
 })
 
@@ -66,6 +66,11 @@ pose_model.to(device)
 # summary(pose_model, input_size=(batch_size, 1, 3, 256, 256))
 
 def joint_training(model, loss_fn, optimizer, num_epochs, train_loader, val_loader):
+    # For validation
+    top_score = 0.0
+    top_epoch = 0
+    best_model = model
+    # Training:
     model.train()
     # wandb.watch(model, log_freq=1, log='all')        
     for epoch in range(1, num_epochs + 1):
@@ -78,8 +83,6 @@ def joint_training(model, loss_fn, optimizer, num_epochs, train_loader, val_load
             joints = all_joints[-1] # Last block.
             joint_vis_pred = torch.concat([joints, visibility], dim=1) # B x 3 x T x N_J
             loss = loss_fn(joint_vis_pred, joint_vis_true) 
-            # print('training')      
-            # print(joint_vis_pred[:, :-1], joint_vis_true[:, :-1])     
 
             optimizer.zero_grad()
             loss.backward()
@@ -93,40 +96,73 @@ def joint_training(model, loss_fn, optimizer, num_epochs, train_loader, val_load
         wandb.log({'loss_train': loss_train/len(train_loader)})
 
         # Validation
-        with torch.no_grad():
-            model.eval()
-            loss_val = 0.0
-            for output in val_loader:
-                imgs = output['frame'].to(device).unsqueeze(1)
-                joint_vis_true  = output['pose'].permute(0, 2, 1).unsqueeze(2).to(device)                 
-                joints_true = joint_vis_true[:, :-1, :, :]                
-                afmat  = output['afmat'] #.to(device)
-                headsize  = output['headsize'] #.to(device) 
-                # print(f'headsize: {headsize.shape}')
-                visibility , _, all_joints  = model(imgs)
-                joint_vis_pred  = torch.concat([all_joints[-1], visibility], dim=1)
-                loss = loss_fn(joint_vis_pred, joint_vis_true)
-                loss_val += loss.item()
-                # print(f'afmat: {afmat.shape}')
-                # Don't pass visibility information.
-                # print('eval')
-                # print(all_joints, joints_true)
-                pckh_scores = eval_singleperson_pckh(
-                    all_joints, joints_true, afmat_val=afmat, 
-                    headsize_val=headsize, batch_size=wandb.config.batch_size, 
-                    num_blocks=wandb.config.pose_blocks, verbose=1)         
-                # Scores is a list; pick max.
-                wandb.log({'val_loss_batch': loss.item(), 'pckh_scores': pckh_scores, 'top_pckh': max(pckh_scores), 'epoch': epoch})                
-            wandb.log({'loss_val': loss_val/len(val_loader)})
+        curr_score = joint_validation(model, loss_fn, val_loader, epoch)
+        if curr_score > top_score:
+            top_score = curr_score
+            top_epoch = epoch
+            best_model_state_dict = model.state_dict()
+    wandb.log({'top_score_overall': top_score, 'top_epoch': top_epoch})
+
+    # Save model with best validation score.
+    torch.save(best_model_state_dict, 'mpii_pose_only.pth')
+
+def joint_validation(model, loss_fn, val_loader, epoch=-1):        
+    """
+
+    Args:
+        epoch: Epoch number. If not applicable, will log -1.
+
+    Returns:
+        top_score: Top score on validation set.        
+    
+    """
+    with torch.no_grad():
+        model.eval()
+        loss_val = 0.0               
+        for output in val_loader:
+            imgs = output['frame'].to(device).unsqueeze(1)
+            joint_vis_true  = output['pose'].permute(0, 2, 1).unsqueeze(2).to(device)                 
+            joints_true = joint_vis_true[:, :-1, :, :]                
+            afmat  = output['afmat']
+            headsize  = output['headsize']                 
+            visibility , _, all_joints  = model(imgs)
+            joint_vis_pred  = torch.concat([all_joints[-1], visibility], dim=1)
+            loss = loss_fn(joint_vis_pred, joint_vis_true)
+            loss_val += loss.item()
+            pckh_scores = eval_singleperson_pckh(
+                all_joints, joints_true, afmat_val=afmat, 
+                headsize_val=headsize, batch_size=wandb.config.batch_size, 
+                num_blocks=wandb.config.pose_blocks, verbose=1)         
+            # Scores is a list; pick max.
+            top_pckh = max(pckh_scores)
+            wandb.log({'val_loss_batch': loss.item(), 'pckh_scores_per_epoch': pckh_scores, 'top_pckh_per_epoch': top_pckh})                        
+        wandb.log({'loss_val': loss_val/len(val_loader), 'epoch': epoch})  
+    return top_pckh
 
 # Overfit one batch (starting with batch_size=2 as 20 is too much to handle for my CPU)
 one_batch_train = [next(iter(train_dataloader))] # Make list so it can be iterated over.
 one_batch_val = [next(iter(val_dataloader))]
 
-# for output in one_batch_val:
-#     print(output['pose'])
-
 loss_fn = ElasticNetLoss()
 optimizer = optim.Adam(pose_model.parameters(), lr=wandb.config.lr)
 
-joint_training(pose_model, loss_fn, optimizer, num_epochs=wandb.config.num_epochs, train_loader=one_batch_val, val_loader=one_batch_val)
+joint_training(pose_model, loss_fn, optimizer, num_epochs=wandb.config.num_epochs, train_loader=one_batch_train, val_loader=one_batch_val)
+
+# Save model with wandb
+artifact = wandb.Artifact('mpii_only_model', type='model')
+artifact.add_file('mpii_pose_only.pth')
+run.log_artifact(artifact)
+# pose_model_saved = nn.Sequential(
+#     EntryFlow(),
+#     PoseEstimation(16, wandb.config.batch_size, pose_dim, K=wandb.config.pose_blocks)
+# )
+run.finish()
+
+# Check model saved correctly
+# pose_model_saved.to(device)
+# model = pose_model_saved
+# model.load_state_dict(torch.load('mpii_pose_only.pth'))
+# model.eval()
+# saved_val_score = joint_validation(pose_model_saved, loss_fn, one_batch_val)
+
+# wandb.log({'saved model val score': saved_val_score})

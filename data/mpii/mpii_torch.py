@@ -9,6 +9,7 @@ Note that this file can't be run individually anymore; needs to be run through t
 
 """
 
+from audioop import reverse
 import os
 from random import seed
 
@@ -161,7 +162,7 @@ class Mpii(Dataset):
                 channel_power=dconf['chpower']), dtype=torch.float32).permute(2, 0, 1) # C x H x W
 
         p = np.empty((self.poselayout.num_joints, self.poselayout.dim))
-        p[:] = np.nan
+        p[:] = np.nan                   
 
         head = annot['head_rect']
         p[self.poselayout.map_to_mpii, 0:2] = \
@@ -177,10 +178,9 @@ class Mpii(Dataset):
 
         output['pose'] = torch.tensor(np.concatenate((p, v), axis=-1), dtype=torch.float32)
         output['headsize'] = torch.tensor(calc_head_size(annot['head_rect']), dtype=torch.float32)
-        output['afmat'] = torch.tensor(imgt.afmat.copy(), dtype=torch.float32) # Affine transformation, for rotation, flipping, etc.
+        output['afmat'] = torch.tensor(imgt.afmat.copy(), dtype=torch.float32) # Affine transformation saved.
 
-        return output
-        # return output
+        return output        
 
 if __name__=='__main__':              
     mpii = Mpii(mode=TRAIN_MODE)

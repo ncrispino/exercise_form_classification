@@ -51,12 +51,14 @@ Also, I need to set the number of actions, which in my case will be 2 (straight 
 1. Loss didn't work when batch size changed to 8; realized I was calculating it over batch and dimension, not batch and time.
 1. Changed batch size back to 2, then tried to remove batch relu for testing (should probably just have removed batch norm, but it still ended up with same error)
 1. Still using Adam, but changed to 1e-3. This got a loss of 0.0064, which I will deem good enough for overfitting one data point. Now, I'll try a batch.
-1. Now, trying to overfit batch of 24, which is the batch size in the paper. Getting around 0.03 which is fine.
+1. Now, trying to overfit batch of 24, which is the batch size in the paper. Getting around 0.03 which is fine. I could probably try to lower the loss even more, but I'll move on for now.
 1. Moved to gpu to train faster. Got errors because I didn't use nn.ModuleList and softmax used tensors I created that were implicitly on gpu
 1. Using colab notebook where I do a git pull; gpu is way faster, so trying more epochs, more pose blocks, different learning rates, etc.
 1. Trying to implement validation; had to copy some numpy utility/measurement/etc. files from official repo.
-    - Problem is that after applying affine transformation, norm is too large relative to refp (reference point with respect to head size). This is maybe due to y_pred not being optimized for this?
-
+    - Problem is that after applying affine transformation, norm is too large relative to refp (reference point with respect to head size). This is maybe due to y_pred not being optimized for this? I'm having real trouble with this, so I'm gonna use their code in colab and print ypred and ytrue to see if they're actually that different. Actually, I can't use their code directly because their MPII annotations file isn't directly available.
+    - I tried using more than 1 pose block, which actually got me non-zero results for pckh, which solves my problem! Finally--only took a day of annoying debugging...
+    - TODO: test with one batch size for train and eval to make sure gpu works(?), then do all tests. Note that there's a problem here as in mpii_tools I call transform_2d_points on A.numpy(), which is not supported on the gpu.
+1. Making sure saved model gets same validation score; doing two wandb runs. Getting different pckh scores, which I'll try to fix before I run the whole model on Google Cloud.
 ### Misc
 I didn't find any PyTorch implementations on [paperswithcode.com](https://paperswithcode.com/paper/2d3d-pose-estimation-and-action-recognition), though it says there is one. So, this will be somewhat novel for that reason (though I'm sure an implementation in PyTorch does exist).
 

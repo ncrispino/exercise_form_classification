@@ -35,31 +35,6 @@ def eval_singleperson_pckh(pred, pval, afmat_val, headsize_val,
         verbose: Verbosity.
 
     """
-    # pval = outputs['pose']
-    # afmat_val = outputs['afmat']
-    # headsize_val = outputs['head_size']
-
-    # input_shape = model.get_input_shape_at(0)
-    # # Video clip processing.
-    # num_frames = input_shape[1]
-    # num_batches = int(len(fval) / num_frames)
-
-    # fval = fval[0:num_batches*num_frames]
-    # fval = np.reshape(fval, (num_batches, num_frames,) + fval.shape[1:])
-
-    # pval = pval[0:num_batches*num_frames]
-    # afmat_val = afmat_val[0:num_batches*num_frames]
-    # headsize_val = headsize_val[0:num_batches*num_frames]
-
-    # num_blocks = int(len(model.outputs) / pred_per_block)
-    # inputs = [fval]
-    # if win is not None:
-    #     num_blocks -= 1
-    #     inputs.append(win)
-
-    # pred = model.predict(inputs, batch_size=batch_size, verbose=1)
-    # if win is not None:
-    #     del pred[0]
 
     A = afmat_val[:]
     y_true = pval[:]    
@@ -67,10 +42,8 @@ def eval_singleperson_pckh(pred, pval, afmat_val, headsize_val,
     # Change to correct shape for pckh input (B * T, N_J, dim).
     pred = pred.view(pred.shape[0], -1, pred.shape[4], pred.shape[2]) # K x B x dim x T x N_J -> K x B * T x N_J x dim    
     y_true = y_true.contiguous().view(-1, y_true.shape[3], y_true.shape[1]) # B x dim x T x N_J -> B * T x N_J x dim    
-    
-    # print(f'prev ytrue: {y_true.shape}')
-    y_true = transform_pose_sequence(A.numpy(), y_true.cpu(), inverse=True)
-    # print(f'new ytrue: {y_true.shape}')
+        
+    y_true = transform_pose_sequence(A.numpy(), y_true.cpu(), inverse=True)    
 
     if map_to_pa16j is not None:
         y_true = y_true[:, map_to_pa16j, :]
@@ -81,16 +54,10 @@ def eval_singleperson_pckh(pred, pval, afmat_val, headsize_val,
     for b in range(num_blocks):
 
         y_pred = pred[b]
-        # if num_blocks > 1:
-        #     y_pred = pred[b]
-        # else:
-        #     y_pred = pred
 
         if map_to_pa16j is not None:
-            y_pred = y_pred[:, map_to_pa16j, :]
-        # print(f'prev ypred: {y_pred.shape}')        
-        y_pred = transform_pose_sequence(A.numpy(), y_pred.cpu(), inverse=True)
-        # print(f'new ypred: {y_pred}')
+            y_pred = y_pred[:, map_to_pa16j, :]              
+        y_pred = transform_pose_sequence(A.numpy(), y_pred.cpu(), inverse=True)        
         s = pckh(y_true, y_pred, headsize_val, refp=refp)
         if verbose:
             printc(WARNING, ' %.1f' % (100*s))
