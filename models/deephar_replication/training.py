@@ -144,8 +144,8 @@ def joint_validation(model, loss_fn, val_loader, epoch=-1):
             top_pckh += top_pckh_batch
             # print(f'top_pckh: {top_pckh}')
             # Note I'm only logging the last list of scores.
-            pckh_table = wandb.table(columns=[k for k in range(len(pckh_scores_batch))])
-            pckh_table.add_row(pckh_scores_batch)
+            pckh_table = wandb.Table(columns=[k for k in range(len(pckh_scores_batch))])
+            pckh_table.add_data(*pckh_scores_batch)
             wandb.log({'val_loss_batch': loss.item(), 'pckh_scores_per_batch': pckh_table, 'top_pckh_per_batch': top_pckh_batch})                        
         wandb.log({'loss_val': loss_val/len(val_loader), 'epoch': epoch})  
     return top_pckh/len(val_loader)
