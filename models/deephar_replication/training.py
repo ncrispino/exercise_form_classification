@@ -29,12 +29,12 @@ from pose_estimation import PoseEstimation
 from exp.common.mpii_tools import eval_singleperson_pckh
 
 import wandb
-run = wandb.init(project='deephar_replication') #, mode='disabled')
+run = wandb.init(project='deephar_replication', mode='disabled')
 wandb.config.update({    
     'lr': 3e-4,
     'num_epochs': 100,
     'dataset': 'mpii', 
-    'batch_size': 24, # Set batch size to 24 on GPU, as in paper.
+    'batch_size': 2, # Set batch size to 24 on GPU, as in paper.
     'pose_blocks': 4,
 })
 
@@ -51,6 +51,7 @@ mpii_val = Mpii(mode=VALID_MODE, dataset_path='../../data/mpii/data/')
 
 train_dataloader = DataLoader(mpii_train, batch_size=wandb.config.batch_size, shuffle=True, drop_last=True)
 val_dataloader = DataLoader(mpii_val, batch_size=wandb.config.batch_size, shuffle=True, drop_last=True)
+val_loader_one_batch = DataLoader(mpii_val, batch_size=len(mpii_val), shuffle=True, drop_last=True)
 
 N_J = 16
 pose_dim = 2
@@ -90,13 +91,16 @@ def joint_training(model, loss_fn, optimizer, num_epochs, train_loader, val_load
 
             loss_train += loss.item()
 
-            wandb.log({'images': [wandb.Image(im) for im in imgs], 'epoch': epoch, 'train_loss_batch': loss.item()}) 
-          #  'joint_vis_pred': joint_vis_pred, 'joint_vis_true': joint_vis_true})
+            wandb.log({'epoch': epoch, 'train_loss_batch': loss.item()}) 
+          #  'joint_vis_pred': joint_vis_pred, 'joint_vis_true': joint_vis_true, 'images': [wandb.Image(im) for im in imgs]})
 
         wandb.log({'loss_train': loss_train/len(train_loader)})
 
         # Validation
         curr_score = joint_validation(model, loss_fn, val_loader, epoch)
+        print(f'curr_score: {curr_score}')
+        print('curr_score one batch: ', joint_validation(model, loss_fn, val_loader_one_batch, epoch))
+        # print(f'top score: {top_score}')
         if curr_score > top_score:
             top_score = curr_score
             top_epoch = epoch
@@ -130,16 +134,19 @@ def joint_validation(model, loss_fn, val_loader, epoch=-1):
             joint_vis_pred  = torch.concat([all_joints[-1], visibility], dim=1)
             loss = loss_fn(joint_vis_pred, joint_vis_true)
             loss_val += loss.item()
-            pckh_scores_epoch = eval_singleperson_pckh(
+            pckh_scores_batch = eval_singleperson_pckh(
                 all_joints, joints_true, afmat_val=afmat, 
                 headsize_val=headsize, batch_size=wandb.config.batch_size, 
                 num_blocks=wandb.config.pose_blocks, verbose=1)         
             # Scores is a list; pick max. TODO: change for multiple batches?
-            top_pckh_epoch = max(pckh_scores_epoch)
+            top_pckh_batch = max(pckh_scores_batch)
             # top_pckh = top_pckh_epoch if top_pckh_epoch > top_pckh else top_pckh
-            top_pckh += top_pckh_epoch
+            top_pckh += top_pckh_batch
+            # print(f'top_pckh: {top_pckh}')
             # Note I'm only logging the last list of scores.
-            wandb.log({'val_loss_batch': loss.item(), 'pckh_scores_per_epoch': pckh_scores_epoch, 'top_pckh_per_epoch': top_pckh_epoch})                        
+            pckh_table = wandb.table(columns=[k for k in range(len(pckh_scores_batch))])
+            pckh_table.add_row(pckh_scores_batch)
+            wandb.log({'val_loss_batch': loss.item(), 'pckh_scores_per_batch': pckh_table, 'top_pckh_per_batch': top_pckh_batch})                        
         wandb.log({'loss_val': loss_val/len(val_loader), 'epoch': epoch})  
     return top_pckh/len(val_loader)
 
@@ -159,6 +166,14 @@ run.log_artifact(artifact)
 run.finish()
 
 # Check model saved correctly
+# run = wandb.init(project='deephar_replication') #, mode='disabled')
+# wandb.config.update({    
+#     'lr': 3e-4,
+#     'num_epochs': 100,
+#     'dataset': 'mpii', 
+#     'batch_size': 2, # Set batch size to 24 on GPU, as in paper.
+#     'pose_blocks': 4,
+# })
 # pose_model_saved = nn.Sequential(
 #     EntryFlow(),
 #     PoseEstimation(16, wandb.config.batch_size, pose_dim, K=wandb.config.pose_blocks)
