@@ -29,12 +29,12 @@ from pose_estimation import PoseEstimation
 from exp.common.mpii_tools import eval_singleperson_pckh
 
 import wandb
-run = wandb.init(project='deephar_replication', mode='disabled')
+run = wandb.init(project='deephar_replication') #, mode='disabled')
 wandb.config.update({    
     'lr': 3e-4,
     'num_epochs': 100,
     'dataset': 'mpii', 
-    'batch_size': 2, # Set batch size to 24 on GPU, as in paper.
+    'batch_size': 24, # Set batch size to 24 on GPU, as in paper.
     'pose_blocks': 4,
 })
 
@@ -49,9 +49,8 @@ VALID_MODE = 2
 mpii_train = Mpii(mode=TRAIN_MODE, dataset_path='../../data/mpii/data/')
 mpii_val = Mpii(mode=VALID_MODE, dataset_path='../../data/mpii/data/')
 
-train_dataloader = DataLoader(mpii_train, batch_size=wandb.config.batch_size, shuffle=True, drop_last=True)
-val_dataloader = DataLoader(mpii_val, batch_size=wandb.config.batch_size, shuffle=True, drop_last=True)
-val_loader_one_batch = DataLoader(mpii_val, batch_size=len(mpii_val), shuffle=True, drop_last=True)
+train_dataloader = DataLoader(mpii_train, batch_size=wandb.config.batch_size, shuffle=False, drop_last=True)
+val_dataloader = DataLoader(mpii_val, batch_size=wandb.config.batch_size, shuffle=False, drop_last=True)
 
 N_J = 16
 pose_dim = 2
@@ -97,10 +96,8 @@ def joint_training(model, loss_fn, optimizer, num_epochs, train_loader, val_load
         wandb.log({'loss_train': loss_train/len(train_loader)})
 
         # Validation
-        curr_score = joint_validation(model, loss_fn, val_loader, epoch)
-        print(f'curr_score: {curr_score}')
-        print('curr_score one batch: ', joint_validation(model, loss_fn, val_loader_one_batch, epoch))
-        # print(f'top score: {top_score}')
+        curr_score = joint_validation(model, loss_fn, val_loader, epoch)                          
+        print(f'curr_score: {curr_score}')        
         if curr_score > top_score:
             top_score = curr_score
             top_epoch = epoch
@@ -110,7 +107,7 @@ def joint_training(model, loss_fn, optimizer, num_epochs, train_loader, val_load
     # Save model with best validation score.
     torch.save(best_model_state_dict, 'mpii_pose_only.pth')
 
-def joint_validation(model, loss_fn, val_loader, epoch=-1):        
+def joint_validation(model, loss_fn, val_loader, epoch=-1, num_blocks=wandb.config.pose_blocks):       
     """
 
     Args:
@@ -123,9 +120,11 @@ def joint_validation(model, loss_fn, val_loader, epoch=-1):
     model.eval()
     loss_val = 0.0  
     top_pckh = 0.0  
+    pckh_table = wandb.Table(columns=[k for k in range(num_blocks)])
     with torch.no_grad():           
         for output in val_loader:
             imgs = output['frame'].to(device).unsqueeze(1)
+            print(f'images shape: {imgs.shape}')
             joint_vis_true  = output['pose'].permute(0, 2, 1).unsqueeze(2).to(device)                 
             joints_true = joint_vis_true[:, :-1, :, :]                
             afmat  = output['afmat']
@@ -137,14 +136,10 @@ def joint_validation(model, loss_fn, val_loader, epoch=-1):
             pckh_scores_batch = eval_singleperson_pckh(
                 all_joints, joints_true, afmat_val=afmat, 
                 headsize_val=headsize, batch_size=wandb.config.batch_size, 
-                num_blocks=wandb.config.pose_blocks, verbose=1)         
-            # Scores is a list; pick max. TODO: change for multiple batches?
-            top_pckh_batch = max(pckh_scores_batch)
-            # top_pckh = top_pckh_epoch if top_pckh_epoch > top_pckh else top_pckh
-            top_pckh += top_pckh_batch
-            # print(f'top_pckh: {top_pckh}')
-            # Note I'm only logging the last list of scores.
-            pckh_table = wandb.Table(columns=[k for k in range(len(pckh_scores_batch))])
+                num_blocks=wandb.config.pose_blocks, verbose=1)                     
+            # Last block. Doesn't seem like we can take max and report it as validation score.
+            top_pckh_batch = pckh_scores_batch[-1] # max(pckh_scores_batch)        
+            top_pckh += top_pckh_batch            
             pckh_table.add_data(*pckh_scores_batch)
             wandb.log({'val_loss_batch': loss.item(), 'pckh_scores_per_batch': pckh_table, 'top_pckh_per_batch': top_pckh_batch})                        
         wandb.log({'loss_val': loss_val/len(val_loader), 'epoch': epoch})  
@@ -153,6 +148,8 @@ def joint_validation(model, loss_fn, val_loader, epoch=-1):
 # Overfit one batch (starting with batch_size=2 as 20 is too much to handle for my CPU)
 one_batch_train = [next(iter(train_dataloader))] # Make list so it can be iterated over.
 one_batch_val = [next(iter(val_dataloader))]
+# two_batch_val = [next(iter(val_dataloader)), next(iter(val_dataloader))]
+# two_batch_val_combined = [next(iter(val_dataloader_new))]
 
 loss_fn = ElasticNetLoss()
 optimizer = optim.Adam(pose_model.parameters(), lr=wandb.config.lr)
