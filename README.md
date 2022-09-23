@@ -3,9 +3,9 @@ Given a picture/video of an exercise, will classify it as done with conventional
 
 ## Progress
 - [x] Pose model finished training at around 80% on the PCKh measure (obtained by taking the mean across batches) on the MPII 2D Human Pose dataset using GCP. This is less than in the paper, so I should ideally return to this model.
-- [] Train action recognition model (and implement validation score for it)
-- [] Synthesize new dataset with exercises (have an idea using Google photos, but it doesn't seem like enough)
-- [] Train on new data
+- [ ] Train action recognition model (and implement validation score for it)
+- [ ] Synthesize new dataset with exercises (have an idea using Google photos, but it doesn't seem like enough)
+- [ ] Train on new data
 
 ## Supported Exercises
 Currently, I am focusing on distinguishing straight vs. banana handstands. There are many other types of handstands (and exercises in general), but due to the cost of creating datasets, I will ignore them for now.
