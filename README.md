@@ -1,6 +1,12 @@
 # Exercise Form Classifier
 Given a picture/video of an exercise, will classify it as done with conventionally good or bad form. This is different than some other projects as it aims not to only count repetitions, but to care about how the exercise is executed overall. Also, once given data, no heuristics like joint angles need to be used; the model should learn them itself. The neural network will be initially trained on large datasets for pose estimation and action recognition, then will be extended by training with self-labeled images for the supported exercises.
 
+## Progress
+- [x] Pose model finished training at around 80% on the PCKh measure (obtained by taking the mean across batches) on the MPII 2D Human Pose dataset using GCP. This is less than in the paper, so I should ideally return to this model.
+- [] Train action recognition model (and implement validation score for it)
+- [] Synthesize new dataset with exercises (have an idea using Google photos, but it doesn't seem like enough)
+- [] Train on new data
+
 ## Supported Exercises
 Currently, I am focusing on distinguishing straight vs. banana handstands. There are many other types of handstands (and exercises in general), but due to the cost of creating datasets, I will ignore them for now.
 
@@ -32,7 +38,7 @@ A 'perfectly straight' handstand, perhaps according to averaging from the traini
 ## Papers Implemented/Code Used
 - [2D/3D Pose Estimation and Action Recognition using Multitask Deep Learning](https://arxiv.org/pdf/1802.09232.pdf) combining action recognition and pose estimation using one network.
 
-## General Sources
+## General Information
 ### Combining Action Recognition and Pose Estimation
 - [Coupled Action Recognition and Pose Estimation from
 Multiple Views](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.308.5466&rep=rep1&type=pdf)
